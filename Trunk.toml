@@ -1,0 +1,8 @@
+[build]
+target = "index.html"
+dist = "dist"
+# Relative URLs so the game works from any GitHub Pages sub-path.
+public_url = "./"
+
+[serve]
+port = 8080
