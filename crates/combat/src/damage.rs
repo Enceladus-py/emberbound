@@ -9,7 +9,7 @@ use emberbound_domain::combat::resolve_hit;
 use emberbound_domain::ports::RandomSource;
 
 /// Mercy window after the hero is hurt.
-const HURT_INVULNERABILITY: f32 = 0.6;
+const HURT_INVULNERABILITY: f32 = 0.85;
 const HURT_SHAKE: f32 = 0.25;
 const DRAGON_DEATH_SHAKE: f32 = 0.9;
 const DRAGON_DEATH_BURSTS: usize = 6;
