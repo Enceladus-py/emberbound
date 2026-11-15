@@ -56,7 +56,7 @@ impl MonsterKind {
         let d = difficulty.max(1.0);
         let speed_scale = 1.0 + (d - 1.0) * 0.12;
         let (hp, speed, dmg, armor, xp, radius, flies, behavior) = match self {
-            MonsterKind::Slime => (18.0, 26.0, 8.0, 0.0, 2, 6.0, false, Behavior::Chase),
+            MonsterKind::Slime => (18.0, 34.0, 8.0, 0.0, 2, 6.0, false, Behavior::Chase),
             MonsterKind::Bat => (10.0, 52.0, 6.0, 0.0, 2, 5.0, true, Behavior::Swoop),
             MonsterKind::Goblin => (
                 24.0,
@@ -143,8 +143,7 @@ pub struct DragonSpec {
 }
 
 impl DragonKind {
-    pub const ALL: [DragonKind; 3] =
-        [DragonKind::MossWyrm, DragonKind::FrostDrake, DragonKind::AshenTyrant];
+    pub const ALL: [DragonKind; 3] = [DragonKind::MossWyrm, DragonKind::FrostDrake, DragonKind::AshenTyrant];
 
     /// The dragon that follows this one, if any.
     pub fn next(self) -> Option<DragonKind> {

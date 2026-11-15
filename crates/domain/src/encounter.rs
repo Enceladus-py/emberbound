@@ -30,7 +30,7 @@ impl Default for Director {
     fn default() -> Self {
         Self {
             elapsed: 0.0,
-            spawn_timer: 1.5,
+            spawn_timer: 0.5,
             kills_since_dragon: 0,
             next_dragon: Some(DragonKind::MossWyrm),
             dragon_active: false,
@@ -88,7 +88,7 @@ impl Director {
     }
 
     fn spawn_interval(&self) -> f32 {
-        let base = (1.5 - self.dragons_slain as f32 * 0.3 - self.elapsed / 400.0).max(0.45);
+        let base = (1.1 - self.dragons_slain as f32 * 0.2 - self.elapsed / 400.0).max(0.4);
         if self.dragon_active { base * 2.5 } else { base }
     }
 
@@ -143,7 +143,7 @@ impl Director {
             self.spawn_timer = self.spawn_interval();
             let room = self.monster_cap().saturating_sub(alive_monsters);
             // Occasionally a small pack arrives together.
-            let pack = if rng.chance(0.25) { 3 } else { 1 };
+            let pack = if rng.chance(0.3) { 3 } else { 1 };
             let kind = self.pick_monster(rng);
             for _ in 0..pack.min(room) {
                 orders.push(SpawnOrder::Monster { kind, difficulty: self.difficulty() });
