@@ -7,7 +7,7 @@
 use super::hash;
 use crate::canvas::{Canvas, Rgba};
 use crate::palette::{
-    BARK, BARK_DARK, BLUE, COAL, CREAM, FROST, GOLD, GRASS, GREEN, GREEN_DEEP, ICE, LIME, MAROON, ORANGE, OUTLINE,
+    BARK, BLUE, COAL, CREAM, FROST, GOLD, GRASS, GREEN, GREEN_DEEP, ICE, LIME, MAROON, ORANGE, OUTLINE,
     RED, SAND, SKY, STEEL, STONE, STONE_DARK, STONE_LIGHT, TAN, WHITE,
 };
 
@@ -42,6 +42,7 @@ struct Look {
     /// How far dorsal spikes stick out, in design units.
     spike_reach: f32,
     horn_length: f32,
+    horn_width: f32,
     wing_scale: f32,
 }
 
@@ -139,6 +140,8 @@ fn samples(curve: [Point; 4], count: usize) -> Vec<(f32, Point, Point)> {
 const TAIL: [Point; 4] = [(15.0, 33.0), (7.0, 41.0), (-1.0, 38.0), (4.5, 28.5)];
 const NECK: [Point; 4] = [(28.0, 28.0), (35.5, 27.0), (30.5, 19.0), (36.0, 14.5)];
 const BODY: Point = (22.0, 31.0);
+/// The line the belly plates follow under the body.
+const UNDERSIDE: [Point; 4] = [(14.5, 35.5), (19.0, 39.0), (26.0, 38.5), (29.5, 31.5)];
 
 fn tail_radius(t: f32) -> f32 {
     4.6 - 3.6 * t
@@ -150,7 +153,7 @@ fn neck_radius(t: f32) -> f32 {
 
 fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
     let mut layer = Layer::new(look, lift);
-    let [dark, mid, light] = look.hide;
+    let [_, mid, light] = look.hide;
     let (tail, neck) = (samples(TAIL, 30), samples(NECK, 18));
 
     // Tail tip ornament and dorsal spikes go first: the body covers their roots.
@@ -189,26 +192,28 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
     }
 
     // Belly plates run under the tail root, the body and up the throat.
-    let mut belly = Layer::new(look, lift);
-    belly.ellipse((BODY.0 + 1.0, BODY.1 + 4.4), 9.6, 4.4, look.belly[0]);
-    for &(t, p, dir) in tail.iter().take(14) {
+    // Overlapping discs painted in spine order leave a crescent seam
+    // between one plate and the next.
+    let mut plates: Vec<(Point, f32)> = Vec::new();
+    for &(t, p, dir) in tail.iter().take(14).rev() {
         let r = tail_radius(t);
-        belly.disc((p.0 + dir.1 * r * 0.7, p.1 - dir.0 * r * 0.7), r * 0.55, look.belly[0]);
+        plates.push(((p.0 + dir.1 * r * 0.7, p.1 - dir.0 * r * 0.7), r * 0.55));
+    }
+    for (_, p, _) in samples(UNDERSIDE, 24) {
+        plates.push((p, 3.5));
     }
     for &(t, p, dir) in &neck {
         let r = neck_radius(t);
-        belly.disc((p.0 - dir.1 * r * 0.62, p.1 + dir.0 * r * 0.62), r * 0.6, look.belly[0]);
+        plates.push(((p.0 - dir.1 * r * 0.62, p.1 + dir.0 * r * 0.62), r * 0.6));
     }
-    let period = if look.size > 48 { 4 } else { 3 };
-    for y in 0..look.size as i32 {
-        for x in 0..look.size as i32 {
-            if belly.canvas.get(x, y)[3] > 0 && (x + y) % period == 0 {
-                belly.canvas.set(x, y, look.belly[1]);
-            }
-        }
+    let mut belly = Layer::new(look, lift);
+    let (mut travelled, mut previous) = (0.0_f32, plates[0].0);
+    for (centre, r) in plates {
+        travelled += (centre.0 - previous.0).hypot(centre.1 - previous.1);
+        previous = centre;
+        belly.disc(centre, r, look.belly[usize::from(travelled % 3.0 < 1.0)]);
     }
     layer.canvas.blit_inside(&belly.canvas, 0, 0);
-    // Keep the ornaments clear of belly colour.
     layer.shade(look.hide);
 
     let size = look.size as i32;
@@ -263,7 +268,6 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
             }
         }
     }
-    let _ = dark;
     layer.canvas
 }
 
@@ -293,15 +297,18 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
     let mut layer = Layer::new(look, lift);
     let [dark, mid, _] = look.hide;
     let [horn, horn_light] = look.horn;
-    let len = look.horn_length;
+    let (len, girth) = (look.horn_length, look.horn_width);
 
-    // Far horn, then the near horn sweeping back over the neck.
-    layer.taper([(38.0, 10.0), (36.0, 7.0), (34.0, 6.0), (38.5 - len * 0.8, 9.5 - len * 0.75)], 1.3, 0.5, horn);
+    // Far horn (the Moss Wyrm's antlers stay a single clean beam), then
+    // the near horn sweeping back over the neck.
+    if look.kind != Kind::Moss {
+        layer.taper([(38.0, 10.0), (36.0, 7.0), (34.0, 6.0), (38.5 - len * 0.8, 9.5 - len * 0.75)], girth * 0.8, 0.5, horn);
+    }
     match look.kind {
         Kind::Moss => {
             // Antlers: a main beam with two tines.
-            layer.line((33.0, 7.6), (32.2, 4.0), 1.0, horn_light);
-            layer.line((30.6, 6.2), (29.0, 3.4), 1.0, horn_light);
+            layer.line((33.4, 9.8), (33.0, 5.2), 1.0, horn);
+            layer.line((30.8, 7.8), (31.4, 3.2), 1.0, horn);
             // A leafy frill behind the jaw.
             layer.spike((35.2, 16.0), (-0.8, 0.6), 4.0, 1.6, LIME);
             layer.spike((35.0, 13.8), (-1.0, 0.1), 3.6, 1.4, GRASS);
@@ -320,7 +327,7 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
             layer.spike((43.0, 18.0), (-0.2, 0.98), 2.4, 0.9, horn);
         }
     }
-    layer.taper([(36.5, 11.2), (33.5, 10.6), (31.5, 9.0), (36.0 - len, 10.2 - len * 0.7)], 1.6, 0.5, horn);
+    layer.taper([(36.5, 11.2), (33.5, 10.6), (31.5, 9.0), (36.0 - len, 10.2 - len * 0.7)], girth, 0.5, horn);
     layer.canvas = layer.canvas.bevel(horn, horn_light, horn, 1, 0);
 
     // Skull, snout and lower jaw.
@@ -346,7 +353,7 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
 /// A wing hinged on `shoulder`. `flap` runs from 1 (raised) to -1 (swept down).
 fn wing(look: &Look, lift: f32, shoulder: Point, flap: f32, scale: f32, membrane: [Rgba; 3], near: bool) -> Canvas {
     let mut layer = Layer::new(look, lift);
-    let turn = (flap - 1.0) * 0.5 * 52.0;
+    let turn = (flap - 1.0) * 0.5 * 44.0;
     // Fold the fingers together a little on the downstroke.
     let fan = 0.82 + 0.18 * (flap + 1.0) * 0.5;
     let pt = |angle: f32, reach: f32| {
@@ -361,11 +368,11 @@ fn wing(look: &Look, lift: f32, shoulder: Point, flap: f32, scale: f32, membrane
         elbow,
         wrist,
         tips[0],
-        pt(52.0, 19.5),
+        pt(52.0, 17.0),
         tips[1],
-        pt(28.0, 17.5),
+        pt(28.0, 15.0),
         tips[2],
-        pt(4.0, 12.5),
+        pt(4.0, 10.5),
         pt(-14.0, 7.0),
     ];
     layer.polygon(&outline, membrane[1]);
@@ -416,14 +423,15 @@ pub fn moss() -> Vec<Canvas> {
         size: 48,
         hide: [GREEN_DEEP, GREEN, GRASS],
         belly: [SAND, TAN],
-        membrane: [BARK_DARK, BARK, TAN],
-        far_membrane: BARK_DARK,
+        membrane: [BARK, TAN, SAND],
+        far_membrane: BARK,
         bone: GREEN_DEEP,
-        horn: [BARK, TAN],
+        horn: [BARK, SAND],
         spike: LIME,
         eye: GOLD,
         spike_reach: 2.0,
         horn_length: 8.0,
+        horn_width: 1.0,
         wing_scale: 0.94,
     })
 }
@@ -443,6 +451,7 @@ pub fn frost() -> Vec<Canvas> {
         eye: GOLD,
         spike_reach: 3.4,
         horn_length: 5.0,
+        horn_width: 1.4,
         wing_scale: 1.0,
     })
 }
@@ -462,6 +471,7 @@ pub fn ashen() -> Vec<Canvas> {
         eye: GOLD,
         spike_reach: 2.8,
         horn_length: 9.5,
+        horn_width: 1.6,
         wing_scale: 1.0,
     })
 }
