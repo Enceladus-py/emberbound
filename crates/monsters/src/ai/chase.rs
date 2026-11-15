@@ -9,8 +9,9 @@ use super::steering::Detour;
 use crate::hero::HeroPos;
 use crate::route::Trail;
 
-/// Closer than this the chaser is on top of the hero and stops pushing.
-const ARRIVE_DISTANCE: f32 = 2.0;
+/// Closer than this the chaser is touching the hero and stops pushing, so
+/// it bites from the side instead of standing on top of them.
+const ARRIVE_DISTANCE: f32 = 8.0;
 
 pub(super) fn chase(
     time: Res<Time>,
