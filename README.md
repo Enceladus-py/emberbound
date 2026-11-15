@@ -31,6 +31,9 @@ trunk serve --release        # http://localhost:8080
 
 A native window works too: `cargo run --release`.
 
+For play-testing, `--features cheats` adds debug keys (`G` embers, `H` smite
+monsters, `N` smite the dragon, `T` heal); see `src/cheats.rs`.
+
 ```bash
 cargo test -p emberbound_domain -p emberbound_pixelart   # engine-free, fast
 ```
