@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Emberbound</title>
     <meta name="description" content="Emberbound - a pixel-art dragon action RPG that runs in your browser." />
-    <link data-trunk rel="rust" data-bin="emberbound" data-wasm-opt="s" />
+    <link data-trunk rel="rust" data-bin="emberbound" data-wasm-opt="s"
+      data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext --enable-mutable-globals --enable-reference-types --enable-multivalue" />
     <style>
       html, body { margin: 0; height: 100%; background: #12101a; overflow: hidden; }
       #frame { position: fixed; inset: 0; }
