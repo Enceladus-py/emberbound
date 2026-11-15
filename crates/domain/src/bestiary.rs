@@ -56,8 +56,8 @@ impl MonsterKind {
         let d = difficulty.max(1.0);
         let speed_scale = 1.0 + (d - 1.0) * 0.12;
         let (hp, speed, dmg, armor, xp, radius, flies, behavior) = match self {
-            MonsterKind::Slime => (18.0, 34.0, 8.0, 0.0, 2, 6.0, false, Behavior::Chase),
-            MonsterKind::Bat => (10.0, 52.0, 6.0, 0.0, 2, 5.0, true, Behavior::Swoop),
+            MonsterKind::Slime => (18.0, 34.0, 6.0, 0.0, 2, 6.0, false, Behavior::Chase),
+            MonsterKind::Bat => (10.0, 52.0, 5.0, 0.0, 2, 5.0, true, Behavior::Swoop),
             MonsterKind::Goblin => (
                 24.0,
                 34.0,
