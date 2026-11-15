@@ -19,7 +19,7 @@ fn trunk(top: i32) -> Canvas {
 /// A round oak: leaf clumps lit from the top-left.
 fn oak() -> Canvas {
     const CLUMPS: [(f32, f32, f32); 7] =
-        [(8.0, 19.5, 3.4), (5.3, 17.5, 3.6), (10.7, 17.5, 3.6), (8.0, 13.5, 5.0), (4.9, 12.0, 3.8), (11.1, 12.0, 3.8), (8.0, 7.0, 5.6)];
+        [(8.0, 18.5, 3.6), (5.0, 16.5, 3.9), (11.0, 16.5, 3.9), (8.0, 13.0, 5.5), (4.8, 11.0, 3.8), (11.2, 11.0, 3.8), (8.0, 7.5, 6.0)];
     let mut tree = trunk(20);
     for (x, y, r) in CLUMPS {
         tree.disc(x, y, r, GREEN_DEEP);

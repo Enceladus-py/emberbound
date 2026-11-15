@@ -50,17 +50,17 @@ fn variants(paint: impl Fn(u32) -> Tile) -> Vec<Canvas> {
 fn grass_tile(seed: u32) -> Tile {
     let mut tile = Tile::filled(GRASS);
     for (x, y, bits) in spots(seed, 4, 60) {
-        match bits % 5 {
-            0 | 1 => {
+        match bits % 8 {
+            0..=2 => {
                 tile.row(x, y, 2, GRASS_SHADE);
                 tile.put(x + 1, y + 1, GRASS_SHADE);
             }
-            2 => {
+            3 | 4 => {
                 tile.put(x - 1, y - 1, GRASS_SHADE);
                 tile.put(x, y, GRASS_SHADE);
                 tile.put(x + 1, y - 1, GRASS_SHADE);
             }
-            3 => {
+            5 | 6 => {
                 tile.put(x, y, GREEN);
                 tile.put(x, y - 1, LIME);
             }
@@ -77,16 +77,18 @@ pub fn grass() -> Vec<Canvas> {
 pub fn tall_grass() -> Vec<Canvas> {
     variants(|v| {
         let mut tile = grass_tile(200 + v);
-        for (x, y, bits) in spots(300 + v, 4, 70) {
+        for (x, y, bits) in spots(300 + v, 4, 60) {
             // A tuft: dark roots, mid blades, sunlit tips leaning either way.
             let lean = if bits % 2 == 0 { 1 } else { -1 };
-            tile.put(x, y + 1, GREEN_DEEP);
-            tile.row(x - 1, y, 3, GREEN);
-            tile.put(x - 1, y - 1, GREEN);
-            tile.put(x + 1, y - 1, GREEN);
-            tile.put(x, y - 1, LIME);
-            tile.put(x - lean, y - 2, LIME);
-            tile.put(x + lean, y - 2, GREEN);
+            for (dx, color) in [(-2, GREEN), (-1, GREEN_DEEP), (0, GREEN), (1, GREEN_DEEP)] {
+                tile.put(x + dx * lean, y, color);
+            }
+            for (dx, color) in [(-2, LIME), (-1, GREEN), (0, LIME), (1, GREEN)] {
+                tile.put(x + dx * lean, y - 1, color);
+            }
+            tile.put(x - lean, y - 2, GREEN);
+            tile.put(x + lean, y - 2, LIME);
+            tile.put(x - lean, y - 3, LIME);
         }
         tile
     })
@@ -95,7 +97,7 @@ pub fn tall_grass() -> Vec<Canvas> {
 pub fn flowers() -> Vec<Canvas> {
     variants(|v| {
         let mut tile = grass_tile(400 + v);
-        for (x, y, bits) in spots(500 + v, 8, 80) {
+        for (x, y, bits) in spots(500 + v, 8, 65) {
             let petal = [WHITE, CORAL, VIOLET, GOLD][(bits % 4) as usize];
             let heart = if petal == GOLD { CORAL } else { GOLD };
             tile.put(x, y - 1, petal);
@@ -104,9 +106,11 @@ pub fn flowers() -> Vec<Canvas> {
             tile.put(x, y + 1, petal);
             tile.put(x, y, heart);
             tile.put(x, y + 2, GREEN);
-            // A lone bud keeps it company.
-            tile.put(x + 4, y + 3, petal);
-            tile.put(x + 4, y + 4, GREEN);
+            if bits % 3 == 0 {
+                // A lone bud keeps it company.
+                tile.put(x + 4, y + 3, petal);
+                tile.put(x + 4, y + 4, GREEN);
+            }
         }
         tile
     })
@@ -138,10 +142,11 @@ pub fn sand() -> Vec<Canvas> {
                 0 => tile.row(x, y, 3, SAND_LIGHT),
                 1 => tile.row(x, y, 2, TAN),
                 2 => tile.put(x, y, SAND_LIGHT),
-                _ => {
+                _ if bits % 3 == 0 => {
                     tile.put(x, y, STONE_LIGHT);
                     tile.put(x, y + 1, TAN);
                 }
+                _ => tile.put(x, y, TAN),
             }
         }
         tile
@@ -151,19 +156,22 @@ pub fn sand() -> Vec<Canvas> {
 /// Shimmering water: wave crests drift one quarter tile per frame, so the
 /// four frames loop and still tile.
 pub fn water() -> Vec<Canvas> {
-    const CRESTS: [(i32, i32, i32); 6] = [(1, 2, 5), (10, 4, 4), (5, 7, 4), (13, 9, 5), (2, 12, 4), (8, 14, 5)];
+    const CRESTS: [(i32, i32, i32); 4] = [(0, 2, 5), (9, 5, 3), (4, 10, 4), (12, 13, 3)];
     (0..4)
         .map(|frame| {
             let mut tile = Tile::filled(BLUE);
             for (i, (x, y, len)) in CRESTS.into_iter().enumerate() {
                 // Neighbouring crests drift in opposite directions.
                 let drift = if i % 2 == 0 { frame * 4 } else { -frame * 4 };
-                let bob = (frame + i as i32) % 2;
-                tile.row(x + drift + 1, y + 1, len, NAVY);
-                tile.row(x + drift, y + bob - 1 + 1, len, SKY);
-                if (frame + i as i32) % 4 == 0 {
-                    tile.put(x + drift + 1, y + bob, ICE);
+                // Crests swell and shrink as they travel.
+                let swell = (frame + i as i32) % 2;
+                tile.row(x + drift - swell, y, len + swell * 2, SKY);
+                tile.row(x + drift + 2, y + 1, len - 2, NAVY);
+                if swell == 1 {
+                    tile.row(x + drift + 1, y, 2, ICE);
                 }
+                // A lone glint trails each crest.
+                tile.put(x + drift + 7 + swell, y + 2, SKY);
             }
             tile.0
         })
