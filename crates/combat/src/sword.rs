@@ -11,6 +11,9 @@ const ARC_HALF_ANGLE_DEG: f32 = 75.0;
 /// Anything this close to the hero is hit regardless of angle.
 const POINT_BLANK: f32 = 10.0;
 const SLASH_FPS: f32 = 20.0;
+/// Size of the slash sprite and how far out it is drawn, in reaches.
+const ARC_SPAN: f32 = 1.6;
+const ARC_OFFSET: f32 = 0.6;
 
 /// Seconds until the next swing is allowed. Kept as a plain countdown because
 /// boons shorten `attack_cooldown` in the middle of a run.
@@ -44,12 +47,12 @@ pub fn swing(
     let facing = facing.normalize_or(Vec2::X);
     let reach = stats.attack_reach;
 
-    // The crescent is centred in its frame, so placing it half a reach out
-    // and stretching the frame to one reach puts its edge at the reach.
-    let scale = reach / library.size(SpriteId::SlashArc).x;
+    // The crescent sits near the middle of its frame: drawn ARC_SPAN reaches
+    // wide and ARC_OFFSET reaches out, its outer edge lands at the reach.
+    let scale = reach * ARC_SPAN / library.size(SpriteId::SlashArc).x;
     commands.spawn((
         library.one_shot(SpriteId::SlashArc, SLASH_FPS),
-        Transform::from_translation((origin + facing * reach * 0.5).extend(layer::FX))
+        Transform::from_translation((origin + facing * reach * ARC_OFFSET).extend(layer::FX))
             .with_rotation(Quat::from_rotation_z(facing.to_angle()))
             .with_scale(Vec3::new(scale, scale, 1.0)),
         DespawnOnExit(GameState::InRun),

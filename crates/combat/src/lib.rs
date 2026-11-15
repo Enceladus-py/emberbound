@@ -32,9 +32,7 @@ impl Plugin for CombatPlugin {
                 Update,
                 (
                     sword::swing.in_set(GameSet::Input),
-                    (companion::grow, companion::follow, companion::aim_and_fire)
-                        .chain()
-                        .in_set(GameSet::Ai),
+                    (companion::grow, companion::follow, companion::aim_and_fire).chain().in_set(GameSet::Ai),
                     loot::drift.in_set(GameSet::Movement),
                     (projectile::launch, projectile::strike).chain().in_set(GameSet::Combat),
                     contact::touch.in_set(GameSet::Combat),

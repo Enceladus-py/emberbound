@@ -28,7 +28,11 @@ pub struct Projectile {
     spent: bool,
 }
 
-pub fn launch(mut requests: MessageReader<SpawnProjectile>, library: Res<SpriteLibrary>, mut commands: Commands) {
+pub fn launch(
+    mut requests: MessageReader<SpawnProjectile>,
+    library: Res<SpriteLibrary>,
+    mut commands: Commands,
+) {
     for request in requests.read() {
         let heading = request.velocity.normalize_or(Vec2::X);
         commands.spawn((

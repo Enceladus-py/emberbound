@@ -80,8 +80,11 @@ pub fn spawn(
             CompanionShadow,
             library.sprite(SpriteId::Shadow),
             // Local to the parent: back down on the ground, in the shadow layer.
-            Transform::from_xyz(0.0, -HOVER_HEIGHT, layer::SHADOW - COMPANION_Z)
-                .with_scale(Vec3::new(SHADOW_SCALE, SHADOW_SCALE, 1.0)),
+            Transform::from_xyz(0.0, -HOVER_HEIGHT, layer::SHADOW - COMPANION_Z).with_scale(Vec3::new(
+                SHADOW_SCALE,
+                SHADOW_SCALE,
+                1.0
+            )),
         )],
     ));
 }
@@ -172,7 +175,8 @@ pub fn aim_and_fire(
     flight.cooldown = stats.companion_cooldown;
     let aim = offset.normalize_or(Vec2::X);
     let bolts = flight.stage.bolts_per_volley();
-    let attack = AttackProfile::flat(stats.companion_damage * flight.stage.damage_multiplier(), BOLT_KNOCKBACK);
+    let attack =
+        AttackProfile::flat(stats.companion_damage * flight.stage.damage_multiplier(), BOLT_KNOCKBACK);
     for bolt in 0..bolts {
         let fan = (bolt as f32 - (bolts - 1) as f32 * 0.5) * BOLT_SPREAD;
         shots.write(SpawnProjectile {
