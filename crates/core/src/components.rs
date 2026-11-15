@@ -99,3 +99,13 @@ impl Invulnerable {
 /// in front. `world` sets `z = layer::ACTORS - y * 0.001` every frame.
 #[derive(Component, Debug, Default)]
 pub struct YSort;
+
+/// The hero's dash. Lives on the [`Player`]; owned and updated by `world`,
+/// read by `ui` to draw the cooldown.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct DashCooldown {
+    /// Seconds until the dash is ready again (`0.0` = ready).
+    pub remaining: f32,
+    /// Full cooldown length in seconds.
+    pub total: f32,
+}
