@@ -1,0 +1,10 @@
+[package]
+name = "emberbound_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bevy.workspace = true
+emberbound_domain.workspace = true
+emberbound_pixelart.workspace = true
