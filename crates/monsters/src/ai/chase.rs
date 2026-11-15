@@ -1,4 +1,4 @@
-//! `Behavior::Chase`: walk straight at the hero.
+//! `Behavior::Chase`: walk at the hero, around whatever is in the way.
 
 use bevy::prelude::*;
 use emberbound_core::{Monster, Velocity};
@@ -7,6 +7,7 @@ use emberbound_domain::bestiary::Behavior;
 use super::Brain;
 use super::steering::Detour;
 use crate::hero::HeroPos;
+use crate::route::Trail;
 
 /// Closer than this the chaser is on top of the hero and stops pushing.
 const ARRIVE_DISTANCE: f32 = 2.0;
@@ -14,6 +15,7 @@ const ARRIVE_DISTANCE: f32 = 2.0;
 pub(super) fn chase(
     time: Res<Time>,
     hero: HeroPos,
+    trail: Res<Trail>,
     mut chasers: Query<(&Transform, &Brain, &mut Detour, &mut Velocity), With<Monster>>,
 ) {
     let dt = time.delta_secs();
@@ -21,9 +23,11 @@ pub(super) fn chase(
     for (transform, brain, mut detour, mut velocity) in &mut chasers {
         let Behavior::Chase = brain.behavior else { continue };
         let position = transform.translation.truncate();
-        let to_hero = hero_pos - position;
-        let desired =
-            if to_hero.length() > ARRIVE_DISTANCE { to_hero.normalize() } else { Vec2::ZERO };
+        let desired = if position.distance(hero_pos) > ARRIVE_DISTANCE {
+            trail.heading(position, hero_pos)
+        } else {
+            Vec2::ZERO
+        };
         velocity.0 = detour.steer(position, desired, brain.speed * dt, dt) * brain.speed;
     }
 }

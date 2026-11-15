@@ -138,11 +138,7 @@ pub(super) fn telegraph(mut dragons: Query<(&DragonBrain, &mut Transform), With<
             Action::ChargeWindup { left } => {
                 let progress = 1.0 - left / CHARGE_TELEGRAPH;
                 let tremble = (left * CHARGE_TREMBLE_RATE).sin() * CHARGE_TREMBLE;
-                Vec3::new(
-                    1.0 - CHARGE_COIL * progress + tremble,
-                    1.0 + CHARGE_COIL * progress * 0.7,
-                    1.0,
-                )
+                Vec3::new(1.0 - CHARGE_COIL * progress + tremble, 1.0 + CHARGE_COIL * progress * 0.7, 1.0)
             }
             Action::Charge { .. } => CHARGE_STRETCH,
         };

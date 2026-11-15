@@ -2,8 +2,8 @@
 
 use bevy::prelude::*;
 use emberbound_core::{
-    Announce, Armor, Body, ContactDamage, Dragon, Facing, GameState, Health, Knockback,
-    ScreenShake, SpriteId, Team, Velocity, YSort,
+    Announce, Armor, Body, ContactDamage, Dragon, Facing, GameState, Health, Knockback, ScreenShake,
+    SpriteId, Team, Velocity, YSort,
 };
 use emberbound_domain::bestiary::DragonKind;
 
@@ -56,9 +56,7 @@ pub(crate) fn spawn_dragon(
         DespawnOnExit(GameState::InRun),
         children![shadow(&spawner.sprites, shadow_drop, shadow_scale)],
     ));
-    announce.write(Announce {
-        title: spec.name.to_uppercase(),
-        subtitle: format!("{} descends", spec.epithet),
-    });
+    announce
+        .write(Announce { title: spec.name.to_uppercase(), subtitle: format!("{} descends", spec.epithet) });
     shake.add(ARRIVAL_SHAKE);
 }

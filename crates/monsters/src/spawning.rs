@@ -4,8 +4,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use emberbound_core::{
-    Armor, Body, ContactDamage, Dragon, Facing, GameRng, GameState, Health, Knockback, Monster,
-    Player, SpriteId, SpriteLibrary, Team, Terrain, Velocity, YSort, layer,
+    Armor, Body, ContactDamage, Dragon, Facing, GameRng, GameState, Health, Knockback, Monster, Player,
+    SpriteId, SpriteLibrary, Team, Terrain, Velocity, YSort, layer,
 };
 use emberbound_domain::bestiary::{MonsterKind, MonsterSpec};
 use emberbound_domain::ports::RandomSource;
@@ -71,8 +71,7 @@ impl Spawner<'_, '_> {
         }
         let (width, height) = self.terrain.0.world_size();
         let margin = MAP_MARGIN + radius;
-        (margin..width - margin).contains(&position.x)
-            && (margin..height - margin).contains(&position.y)
+        (margin..width - margin).contains(&position.x) && (margin..height - margin).contains(&position.y)
     }
 
     /// A random fitting spot between `min` and `max` units from `centre`.
@@ -143,10 +142,7 @@ impl Spawner<'_, '_> {
 /// instead of being lost somewhere in the valley.
 fn recall_strays(
     hero: HeroPos,
-    mut strays: Query<
-        (&mut Transform, &Body),
-        (Or<(With<Monster>, With<Dragon>)>, Without<Player>),
-    >,
+    mut strays: Query<(&mut Transform, &Body), (Or<(With<Monster>, With<Dragon>)>, Without<Player>)>,
     mut spawner: Spawner,
 ) {
     let hero_pos = hero.translation.truncate();

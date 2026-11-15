@@ -2,9 +2,7 @@
 //! kills, executes its spawn orders and mirrors its state into [`RunStats`].
 
 use bevy::prelude::*;
-use emberbound_core::{
-    ActorDied, ActorKind, Announce, GameState, Monster, RunSetup, RunStats, ScreenShake,
-};
+use emberbound_core::{ActorDied, ActorKind, Announce, GameState, Monster, RunSetup, RunStats, ScreenShake};
 use emberbound_domain::encounter::{Director, SpawnOrder};
 
 use crate::AiStep;

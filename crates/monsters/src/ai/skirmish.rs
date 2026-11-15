@@ -9,6 +9,7 @@ use emberbound_domain::ports::RandomSource;
 use super::Brain;
 use super::steering::Detour;
 use crate::hero::HeroPos;
+use crate::route::Trail;
 
 /// Backs off when the hero is closer than this share of the preferred distance.
 const RETREAT_FRACTION: f32 = 0.7;
@@ -47,6 +48,7 @@ impl Sling {
 pub(super) fn skirmish(
     time: Res<Time>,
     hero: HeroPos,
+    trail: Res<Trail>,
     mut rng: ResMut<GameRng>,
     mut skirmishers: Query<
         (&Transform, &Body, &Brain, &mut Detour, &mut Sling, &mut Velocity),
@@ -73,14 +75,13 @@ pub(super) fn skirmish(
             sling.strafe_switch_in = rng.range(STRAFE_SWITCH.0, STRAFE_SWITCH.1);
         }
         let radial = if distance > preferred_distance * APPROACH_FRACTION {
-            to_hero
+            trail.heading(position, hero_pos)
         } else if distance < preferred_distance * RETREAT_FRACTION {
             -to_hero
         } else {
             Vec2::ZERO
         };
-        let desired =
-            (radial + to_hero.perp() * sling.strafe_side * STRAFE_WEIGHT).normalize_or_zero();
+        let desired = (radial + to_hero.perp() * sling.strafe_side * STRAFE_WEIGHT).normalize_or_zero();
         velocity.0 = detour.steer(position, desired, brain.speed * dt, dt) * brain.speed;
 
         sling.cooldown -= dt;

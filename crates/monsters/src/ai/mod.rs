@@ -35,9 +35,7 @@ pub(crate) fn attach_brain(entity: &mut EntityCommands, spec: &MonsterSpec, rng:
         Behavior::Skirmish { shot_cooldown, .. } => {
             entity.insert((steering::Detour::new(rng), skirmish::Sling::new(shot_cooldown, rng)))
         }
-        Behavior::Lunge { .. } => {
-            entity.insert((steering::Detour::new(rng), lunge::LungeState::Approach))
-        }
+        Behavior::Lunge { .. } => entity.insert((steering::Detour::new(rng), lunge::LungeState::Approach)),
     };
 }
 

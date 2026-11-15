@@ -3,9 +3,7 @@
 use std::f32::consts::TAU;
 
 use bevy::prelude::*;
-use emberbound_core::{
-    Announce, Dragon, Health, Monster, ScreenShake, SpawnProjectile, SpriteId, Team,
-};
+use emberbound_core::{Announce, Dragon, Health, Monster, ScreenShake, SpawnProjectile, SpriteId, Team};
 use emberbound_domain::bestiary::{DragonKind, DragonPhase, DragonSpec};
 use emberbound_domain::combat::AttackProfile;
 use emberbound_domain::ports::RandomSource;

@@ -7,6 +7,7 @@ use emberbound_domain::bestiary::Behavior;
 use super::Brain;
 use super::steering::Detour;
 use crate::hero::HeroPos;
+use crate::route::Trail;
 
 /// Distance to the hero at which the wind-up starts.
 const TRIGGER_DISTANCE: f32 = 60.0;
@@ -24,19 +25,24 @@ const DASH_STRETCH: Vec3 = Vec3::new(1.15, 0.9, 1.0);
 pub(super) enum LungeState {
     Approach,
     /// Standing still, telegraphing; `left` seconds until the dash.
-    Windup { left: f32 },
+    Windup {
+        left: f32,
+    },
     /// Dashing along `direction` for `left` more seconds.
-    Dash { left: f32, direction: Vec2 },
-    Recover { left: f32 },
+    Dash {
+        left: f32,
+        direction: Vec2,
+    },
+    Recover {
+        left: f32,
+    },
 }
 
 pub(super) fn lunge(
     time: Res<Time>,
     hero: HeroPos,
-    mut lungers: Query<
-        (&mut Transform, &Brain, &mut Detour, &mut LungeState, &mut Velocity),
-        With<Monster>,
-    >,
+    trail: Res<Trail>,
+    mut lungers: Query<(&mut Transform, &Brain, &mut Detour, &mut LungeState, &mut Velocity), With<Monster>>,
 ) {
     let dt = time.delta_secs();
     let hero_pos = hero.translation.truncate();
@@ -54,7 +60,8 @@ pub(super) fn lunge(
                 LungeState::Windup { left: windup }
             }
             LungeState::Approach => {
-                velocity.0 = detour.steer(position, to_hero, brain.speed * dt, dt) * brain.speed;
+                let heading = trail.heading(position, hero_pos);
+                velocity.0 = detour.steer(position, heading, brain.speed * dt, dt) * brain.speed;
                 LungeState::Approach
             }
             LungeState::Windup { left } if left <= dt => {
@@ -64,11 +71,7 @@ pub(super) fn lunge(
             LungeState::Windup { left } => {
                 let progress = 1.0 - left / windup.max(f32::EPSILON);
                 let tremble = (left * TREMBLE_RATE).sin() * TREMBLE;
-                scale = Vec3::new(
-                    1.0 + SQUASH * progress + tremble,
-                    1.0 - SQUASH * progress * 0.8,
-                    1.0,
-                );
+                scale = Vec3::new(1.0 + SQUASH * progress + tremble, 1.0 - SQUASH * progress * 0.8, 1.0);
                 velocity.0 = Vec2::ZERO;
                 LungeState::Windup { left: left - dt }
             }

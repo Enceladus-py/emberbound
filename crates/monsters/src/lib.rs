@@ -5,6 +5,7 @@
 //! * [`spawning`] knows *where* and *how* monsters enter the valley.
 //! * [`ai`] drives lesser monsters, one small system per domain `Behavior`.
 //! * [`dragon`] spawns and drives the elder dragons.
+//! * [`route`] is the walkers' path-finding towards the hero.
 //! * [`hero`] and [`posture`] hold what all of the above share.
 
 mod ai;
@@ -12,6 +13,7 @@ mod director;
 mod dragon;
 mod hero;
 mod posture;
+mod route;
 mod spawning;
 
 use bevy::prelude::*;
@@ -41,5 +43,6 @@ impl Plugin for MonstersPlugin {
         ai::plugin(app);
         dragon::plugin(app);
         posture::plugin(app);
+        route::plugin(app);
     }
 }
