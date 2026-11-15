@@ -143,7 +143,7 @@ fn dragon_bars() -> impl Bundle {
                 LureBox,
                 Node { width: percent(70), align_items: AlignItems::Center, ..column(4.0) },
                 children![
-                    (shadowed_label("", font::SMALL, theme::MUTED), LureText),
+                    (shadowed_label("", font::SMALL, theme::PARCHMENT), LureText),
                     bar(LureFill, percent(100), px(8), theme::EMBER),
                 ],
             ),
