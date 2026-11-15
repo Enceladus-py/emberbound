@@ -1,0 +1,127 @@
+//! Cinder, the ember dragon companion, at three ages.
+
+use crate::canvas::Canvas;
+use crate::palette::outlined_art;
+
+pub fn hatchling() -> Vec<Canvas> {
+    vec![
+        outlined_art(&[
+            "............",
+            "......y..y..",
+            ".....ORRRR..",
+            ".O..ORRRRRR.",
+            ".OO.RRRwoRR.",
+            "..OrRRRRRRR.",
+            "...rRRRRYY..",
+            ".r.rRRYYY...",
+            ".rrrRRYYY...",
+            "..rrR.rR....",
+            "............",
+            "............",
+        ]),
+        outlined_art(&[
+            "............",
+            "............",
+            "......y..y..",
+            ".....ORRRR..",
+            "....ORRRRRR.",
+            "....RRRwoRR.",
+            ".OOrRRRRRRR.",
+            ".O.rRRRRYY..",
+            ".r.rRRYYY...",
+            ".rrrRRYYY...",
+            "..rrR.rR....",
+            "............",
+        ]),
+    ]
+}
+
+pub fn fledgling() -> Vec<Canvas> {
+    vec![
+        outlined_art(&[
+            "................",
+            "..OO............",
+            "..OOO.....y.y...",
+            "..mOOO...RRRR...",
+            "...mOOO.ORRRRR..",
+            "...mmOO.RRwoRRR.",
+            "....mmORRRRRRRR.",
+            "....rRRRRRRYYY..",
+            "...rRRRRRRYY....",
+            ".r.rRRRRRYYY....",
+            ".rrrRRRRRYY.....",
+            "..rrrRRRRY......",
+            "....rR..rR......",
+            "....yy..yy......",
+            "................",
+            "................",
+        ]),
+        outlined_art(&[
+            "................",
+            "................",
+            "..........y.y...",
+            ".........RRRR...",
+            "........ORRRRR..",
+            "........RRwoRRR.",
+            "......rRRRRRRRR.",
+            "..OOOOORRRRYYY..",
+            ".OOOOOmRRRYY....",
+            ".rOOmmRRRYYY....",
+            ".rrmRRRRRYY.....",
+            "..rrrRRRRY......",
+            "....rR..rR......",
+            "....yy..yy......",
+            "................",
+            "................",
+        ]),
+    ]
+}
+
+pub fn drake() -> Vec<Canvas> {
+    vec![
+        outlined_art(&[
+            "....................",
+            "..OO................",
+            "..OOOO.......y..y...",
+            "..mOOOOO....y..y....",
+            "...mOOOOO...RRRRR...",
+            "...mmOOOOO.ORRRRRR..",
+            "....mmOOOO.RRyoRRRR.",
+            ".....mmOOO.RRRRRRRR.",
+            "......mmOrRRRRwYwY..",
+            ".....yrRRRRRRYYY....",
+            "....yRRRRRRRRYY.....",
+            "...rRRRRRRRRYYY.....",
+            ".r.rRRRRRRRRYYY.....",
+            ".rrrRRRRRRRRRYY.....",
+            ".yrrrRRRrrRRRY......",
+            "..rr.rRR..rRR.......",
+            ".....rRR..rRR.......",
+            ".....yyy..yyy.......",
+            "....................",
+            "....................",
+        ]),
+        outlined_art(&[
+            "....................",
+            "....................",
+            ".............y..y...",
+            "............y..y....",
+            "............RRRRR...",
+            "...........ORRRRRR..",
+            "...........RRyoRRRR.",
+            "...........RRRRRRRR.",
+            ".........rRRRRwYwY..",
+            ".....yrRRRRRRYYY....",
+            "..OOOOOOORRRRYY.....",
+            ".OOOOOOOmRRRYYY.....",
+            ".OOOOOmmRRRRYYY.....",
+            ".rOOmmrRRRRRRYY.....",
+            ".yrmrRRRrrRRRY......",
+            "..rr.rRR..rRR.......",
+            ".....rRR..rRR.......",
+            ".....yyy..yyy.......",
+            "....................",
+            "....................",
+        ]),
+    ]
+}

@@ -126,6 +126,110 @@ impl Canvas {
         out
     }
 
+    /// Draws `other` at `(x, y)`, but only onto pixels that are already opaque.
+    pub fn blit_inside(&mut self, other: &Canvas, x: i32, y: i32) {
+        for oy in 0..other.height as i32 {
+            for ox in 0..other.width as i32 {
+                let color = other.get(ox, oy);
+                if color[3] > 0 && self.get(x + ox, y + oy)[3] > 0 {
+                    self.set(x + ox, y + oy, color);
+                }
+            }
+        }
+    }
+
+    /// Fills the ellipse centred on `(cx, cy)` (pixel centres are at `+0.5`).
+    pub fn ellipse(&mut self, cx: f32, cy: f32, rx: f32, ry: f32, color: Rgba) {
+        if rx <= 0.0 || ry <= 0.0 {
+            return;
+        }
+        for y in (cy - ry).floor() as i32..=(cy + ry).ceil() as i32 {
+            for x in (cx - rx).floor() as i32..=(cx + rx).ceil() as i32 {
+                let (dx, dy) = ((x as f32 + 0.5 - cx) / rx, (y as f32 + 0.5 - cy) / ry);
+                if dx * dx + dy * dy <= 1.0 {
+                    self.set(x, y, color);
+                }
+            }
+        }
+    }
+
+    /// Fills the circle of radius `r` centred on `(cx, cy)`.
+    pub fn disc(&mut self, cx: f32, cy: f32, r: f32, color: Rgba) {
+        self.ellipse(cx, cy, r, r, color);
+    }
+
+    /// Fills a polygon (even-odd rule, sampled at pixel centres).
+    pub fn polygon(&mut self, points: &[(f32, f32)], color: Rgba) {
+        for y in 0..self.height as i32 {
+            let yc = y as f32 + 0.5;
+            let mut crossings: Vec<f32> = Vec::new();
+            for (i, &(x0, y0)) in points.iter().enumerate() {
+                let (x1, y1) = points[(i + 1) % points.len()];
+                if (y0 <= yc) != (y1 <= yc) {
+                    crossings.push(x0 + (yc - y0) / (y1 - y0) * (x1 - x0));
+                }
+            }
+            crossings.sort_by(f32::total_cmp);
+            for pair in crossings.chunks_exact(2) {
+                for x in 0..self.width as i32 {
+                    let xc = x as f32 + 0.5;
+                    if xc >= pair[0] && xc < pair[1] {
+                        self.set(x, y, color);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Draws a line; `thickness <= 1` gives a crisp one pixel line.
+    pub fn line(&mut self, from: (f32, f32), to: (f32, f32), thickness: f32, color: Rgba) {
+        let (dx, dy) = (to.0 - from.0, to.1 - from.1);
+        let thin = thickness <= 1.0;
+        let steps = if thin { dx.abs().max(dy.abs()).ceil() } else { (dx.hypot(dy) * 2.0).ceil() }.max(1.0);
+        for i in 0..=steps as i32 {
+            let t = i as f32 / steps;
+            let (x, y) = (from.0 + dx * t, from.1 + dy * t);
+            if thin {
+                self.set(x.floor() as i32, y.floor() as i32, color);
+            } else {
+                self.disc(x, y, thickness / 2.0, color);
+            }
+        }
+    }
+
+    /// Shades a flat shape as if lit from the top-left: pixels of colour
+    /// `base` whose upper/left neighbours (within `light_depth`) are not
+    /// `base` become `light`, those whose lower/right neighbours (within
+    /// `dark_depth`) are not `base` become `dark`.
+    pub fn bevel(&self, base: Rgba, light: Rgba, dark: Rgba, light_depth: i32, dark_depth: i32) -> Canvas {
+        let mut out = self.clone();
+        let edge = |x: i32, y: i32| self.get(x, y) != base;
+        for y in 0..self.height as i32 {
+            for x in 0..self.width as i32 {
+                if edge(x, y) {
+                    continue;
+                }
+                if (1..=light_depth).any(|d| edge(x - d, y) || edge(x, y - d)) {
+                    out.set(x, y, light);
+                } else if (1..=dark_depth).any(|d| edge(x + d, y) || edge(x, y + d)) {
+                    out.set(x, y, dark);
+                }
+            }
+        }
+        out
+    }
+
+    /// A copy where every opaque pixel has its alpha replaced by `alpha`.
+    pub fn with_alpha(&self, alpha: u8) -> Canvas {
+        let mut out = self.clone();
+        for px in out.pixels.chunks_mut(4) {
+            if px[3] > 0 {
+                px[3] = alpha;
+            }
+        }
+        out
+    }
+
     pub fn into_rgba(self) -> Vec<u8> {
         self.pixels
     }

@@ -10,6 +10,7 @@
 //! top row first.
 
 mod canvas;
+mod palette;
 mod sheets;
 
 pub use canvas::{Canvas, Rgba};
@@ -159,6 +160,50 @@ mod tests {
                 sheet.frames.iter().all(|f| f.chunks(4).any(|px| px[3] > 0)),
                 "{id:?} has an empty frame"
             );
+        }
+    }
+
+    /// The frame size each sprite promises the engine.
+    fn documented_size(id: SpriteId) -> (u32, u32) {
+        use SpriteId::*;
+        match id {
+            SlashArc => (24, 24),
+            CompanionHatchling => (12, 12),
+            CompanionDrake => (20, 20),
+            DragonMoss | DragonFrost => (48, 48),
+            DragonAshen => (64, 64),
+            Tree => (16, 32),
+            Ruin => (16, 24),
+            Firebolt | VenomSpit | FrostShard | AshFlame | SlingStone | EmberOrb | Heart | Spark => (8, 8),
+            Shadow => (12, 4),
+            HeroIdle | HeroWalk | CompanionFledgling | Slime | Bat | Goblin | Wyrmling | TileGrass | TileTallGrass
+            | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff => (16, 16),
+        }
+    }
+
+    #[test]
+    fn every_sprite_has_its_documented_size() {
+        for id in SpriteId::ALL {
+            let sheet = sheet(id);
+            assert_eq!((sheet.frame_width, sheet.frame_height), documented_size(id), "{id:?}");
+        }
+    }
+
+    #[test]
+    fn ground_tiles_are_fully_opaque() {
+        use SpriteId::*;
+        for id in [TileGrass, TileTallGrass, TileFlowers, TileDirt, TileSand, TileWater] {
+            for (i, frame) in sheet(id).frames.iter().enumerate() {
+                assert!(frame.chunks(4).all(|px| px[3] == 255), "{id:?} frame {i} has a see-through pixel");
+            }
+        }
+    }
+
+    #[test]
+    fn animated_actors_have_at_least_two_frames() {
+        use SpriteId::*;
+        for id in [HeroIdle, HeroWalk, Slime, Bat, Goblin, Wyrmling, DragonMoss, DragonFrost, DragonAshen] {
+            assert!(sheet(id).frames.len() >= 2, "{id:?} does not animate");
         }
     }
 
