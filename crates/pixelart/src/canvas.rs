@@ -117,7 +117,9 @@ impl Canvas {
         for y in 0..self.height as i32 {
             for x in 0..self.width as i32 {
                 if self.get(x, y)[3] == 0
-                    && [(1, 0), (-1, 0), (0, 1), (0, -1)].iter().any(|(dx, dy)| self.get(x + dx, y + dy)[3] > 0)
+                    && [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                        .iter()
+                        .any(|(dx, dy)| self.get(x + dx, y + dy)[3] > 0)
                 {
                     out.set(x, y, color);
                 }

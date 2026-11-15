@@ -5,8 +5,8 @@
 use super::hash;
 use crate::canvas::{Canvas, Rgba};
 use crate::palette::{
-    BARK, BLUE, CORAL, GOLD, GRASS, GRASS_SHADE, GREEN, GREEN_DEEP, ICE, LIME, NAVY, SAND, SAND_LIGHT, SKY, STONE_LIGHT, TAN,
-    VIOLET, WHITE,
+    BARK, BLUE, CORAL, GOLD, GRASS, GRASS_SHADE, GREEN, GREEN_DEEP, ICE, LIME, NAVY, SAND, SAND_LIGHT, SKY,
+    STONE_LIGHT, TAN, VIOLET, WHITE,
 };
 
 const SIZE: i32 = 16;
@@ -38,7 +38,11 @@ fn spots(seed: u32, cell: i32, percent: u32) -> impl Iterator<Item = (i32, i32, 
         let h = hash(i as u32, 11, seed);
         (h % 100 < percent).then(|| {
             let (cx, cy) = (i % per_side, i / per_side);
-            (cx * cell + ((h >> 8) as i32 & 0xff) % cell, cy * cell + ((h >> 16) as i32 & 0xff) % cell, h >> 24)
+            (
+                cx * cell + ((h >> 8) as i32 & 0xff) % cell,
+                cy * cell + ((h >> 16) as i32 & 0xff) % cell,
+                h >> 24,
+            )
         })
     })
 }

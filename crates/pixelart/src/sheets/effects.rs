@@ -41,64 +41,34 @@ fn crescent(sweep: f32, thickness: f32, alpha: u8, seed: u32) -> Canvas {
 }
 
 pub fn slash_arc() -> Vec<Canvas> {
-    vec![crescent(0.55, 5.0, 255, 1), crescent(1.0, 5.5, 255, 2), crescent(1.0, 3.6, 200, 3), crescent(1.0, 2.2, 110, 4)]
+    vec![
+        crescent(0.55, 5.0, 255, 1),
+        crescent(1.0, 5.5, 255, 2),
+        crescent(1.0, 3.6, 200, 3),
+        crescent(1.0, 2.2, 110, 4),
+    ]
 }
 
 pub fn ember_orb() -> Vec<Canvas> {
     vec![
         art(&[
-            "........",
-            "..rOOr..",
-            ".rOyyOr.",
-            ".OyYwyO.",
-            ".OyYYyO.",
-            ".rOyyOr.",
-            "..rOOr..",
-            "........",
+            "........", "..rOOr..", ".rOyyOr.", ".OyYwyO.", ".OyYYyO.", ".rOyyOr.", "..rOOr..", "........",
         ]),
         art(&[
-            "...rr...",
-            "..OOOO..",
-            ".OyyyyO.",
-            "rOyYwyOr",
-            "rOyYYyOr",
-            ".OyyyyO.",
-            "..OOOO..",
-            "...rr...",
+            "...rr...", "..OOOO..", ".OyyyyO.", "rOyYwyOr", "rOyYYyOr", ".OyyyyO.", "..OOOO..", "...rr...",
         ]),
         art(&[
-            "...OO...",
-            "..OyyO..",
-            ".OyYYyO.",
-            "OyYwwYyO",
-            "OyYwYYyO",
-            ".OyYYyO.",
-            "..OyyO..",
-            "...OO...",
+            "...OO...", "..OyyO..", ".OyYYyO.", "OyYwwYyO", "OyYwYYyO", ".OyYYyO.", "..OyyO..", "...OO...",
         ]),
         art(&[
-            "...rr...",
-            "..OOOO..",
-            ".OyyyyO.",
-            "rOyYwyOr",
-            "rOyYYyOr",
-            ".OyyyyO.",
-            "..OOOO..",
-            "...rr...",
+            "...rr...", "..OOOO..", ".OyyyyO.", "rOyYwyOr", "rOyYYyOr", ".OyyyyO.", "..OOOO..", "...rr...",
         ]),
     ]
 }
 
 pub fn heart() -> Vec<Canvas> {
     let heart = art(&[
-        "........",
-        ".mm.mm..",
-        "mRRmRRm.",
-        "mRwRRRm.",
-        "mRRRRrm.",
-        ".mRRrm..",
-        "..mrm...",
-        "...m....",
+        "........", ".mm.mm..", "mRRmRRm.", "mRwRRRm.", "mRRRRrm.", ".mRRrm..", "..mrm...", "...m....",
     ]);
     vec![heart.shifted(0, -1), heart]
 }
@@ -106,51 +76,24 @@ pub fn heart() -> Vec<Canvas> {
 pub fn spark() -> Vec<Canvas> {
     vec![
         art(&[
-            "........",
-            "........",
-            "...YY...",
-            "..YwwY..",
-            "..YwwY..",
-            "...YY...",
-            "........",
-            "........",
+            "........", "........", "...YY...", "..YwwY..", "..YwwY..", "...YY...", "........", "........",
         ]),
         art(&[
-            "...yy...",
-            ".y.YY.y.",
-            "..YwwY..",
-            "yYwwwwYy",
-            "yYwwwwYy",
-            "..YwwY..",
-            ".y.YY.y.",
-            "...yy...",
+            "...yy...", ".y.YY.y.", "..YwwY..", "yYwwwwYy", "yYwwwwYy", "..YwwY..", ".y.YY.y.", "...yy...",
         ]),
         art(&[
-            "y..OO..y",
-            "...yy...",
-            "..y..y..",
-            "Oy....yO",
-            "Oy....yO",
-            "..y..y..",
-            "...yy...",
-            "y..OO..y",
+            "y..OO..y", "...yy...", "..y..y..", "Oy....yO", "Oy....yO", "..y..y..", "...yy...", "y..OO..y",
         ]),
         art(&[
-            "O......O",
-            "........",
-            "...O....",
-            "........",
-            "....O...",
-            "........",
-            "........",
-            "O......O",
+            "O......O", "........", "...O....", "........", "....O...", "........", "........", "O......O",
         ]),
     ]
 }
 
 /// A smoke cloud made of a few lobes that drift apart and thin out.
 pub fn puff() -> Vec<Canvas> {
-    const LOBES: [(f32, f32, f32); 5] = [(0.0, 0.0, 1.0), (-1.0, -0.4, 0.75), (0.9, -0.6, 0.8), (0.5, 0.8, 0.7), (-0.7, 0.8, 0.65)];
+    const LOBES: [(f32, f32, f32); 5] =
+        [(0.0, 0.0, 1.0), (-1.0, -0.4, 0.75), (0.9, -0.6, 0.8), (0.5, 0.8, 0.7), (-0.7, 0.8, 0.65)];
     [(1.2, 2.6, 255), (2.4, 3.0, 255), (3.6, 2.6, 190), (4.6, 1.7, 110)]
         .into_iter()
         .map(|(spread, radius, alpha): (f32, f32, u8)| {

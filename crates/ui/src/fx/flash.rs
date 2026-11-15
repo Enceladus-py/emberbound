@@ -13,9 +13,10 @@ const BLINK_RATE: f32 = 12.0;
 const BLINK_ALPHA: f32 = 0.35;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.init_resource::<Flashes>()
-        .add_systems(OnExit(GameState::InRun), forget_flashes)
-        .add_systems(Update, (start_flashes, end_flashes, blink_hero).chain().run_if(in_state(GameState::InRun)));
+    app.init_resource::<Flashes>().add_systems(OnExit(GameState::InRun), forget_flashes).add_systems(
+        Update,
+        (start_flashes, end_flashes, blink_hero).chain().run_if(in_state(GameState::InRun)),
+    );
 }
 
 /// Seconds of tint left per flashing actor. Kept here rather than as a
@@ -27,7 +28,11 @@ fn forget_flashes(mut flashes: ResMut<Flashes>) {
     flashes.0.clear();
 }
 
-fn start_flashes(mut hits: MessageReader<DamageApplied>, mut flashes: ResMut<Flashes>, mut sprites: Query<&mut Sprite>) {
+fn start_flashes(
+    mut hits: MessageReader<DamageApplied>,
+    mut flashes: ResMut<Flashes>,
+    mut sprites: Query<&mut Sprite>,
+) {
     for hit in hits.read() {
         // Slain monsters are already despawned: nothing to flash.
         let Ok(mut sprite) = sprites.get_mut(hit.target) else { continue };

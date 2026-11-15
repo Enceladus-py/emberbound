@@ -36,7 +36,14 @@ struct Ember {
     tint: Color,
 }
 
-fn ember(library: &SpriteLibrary, position: Vec2, velocity: Vec2, gravity: f32, size: f32, tint: Color) -> impl Bundle {
+fn ember(
+    library: &SpriteLibrary,
+    position: Vec2,
+    velocity: Vec2,
+    gravity: f32,
+    size: f32,
+    tint: Color,
+) -> impl Bundle {
     (
         DespawnOnExit(GameState::InRun),
         Ember { velocity, gravity, age: 0.0, size, tint },
@@ -55,16 +62,31 @@ fn play_requests(
         let at = Transform::from_translation(request.position.extend(layer::FX));
         match request.kind {
             FxKind::HitSpark => {
-                commands.spawn((DespawnOnExit(GameState::InRun), library.one_shot(SpriteId::Spark, SPARK_FPS), at));
+                commands.spawn((
+                    DespawnOnExit(GameState::InRun),
+                    library.one_shot(SpriteId::Spark, SPARK_FPS),
+                    at,
+                ));
             }
             FxKind::DeathPuff => {
-                commands.spawn((DespawnOnExit(GameState::InRun), library.one_shot(SpriteId::Puff, PUFF_FPS), at));
+                commands.spawn((
+                    DespawnOnExit(GameState::InRun),
+                    library.one_shot(SpriteId::Puff, PUFF_FPS),
+                    at,
+                ));
             }
             FxKind::EmberBurst => {
                 for _ in 0..rng.range(10.0, 15.0) as usize {
                     let velocity = rng.direction() * rng.range(35.0, 95.0) + Vec2::Y * 25.0;
                     let size = rng.range(0.55, 1.0);
-                    commands.spawn(ember(&library, request.position, velocity, EMBER_GRAVITY, size, Color::WHITE));
+                    commands.spawn(ember(
+                        &library,
+                        request.position,
+                        velocity,
+                        EMBER_GRAVITY,
+                        size,
+                        Color::WHITE,
+                    ));
                 }
             }
         }
@@ -82,7 +104,14 @@ fn ring_on_level_up(
     for _ in levels.read() {
         for i in 0..RING_EMBERS {
             let direction = Vec2::from_angle(TAU * i as f32 / RING_EMBERS as f32);
-            commands.spawn(ember(&library, centre + direction * 6.0, direction * RING_SPEED, 0.0, 0.9, theme::XP));
+            commands.spawn(ember(
+                &library,
+                centre + direction * 6.0,
+                direction * RING_SPEED,
+                0.0,
+                0.9,
+                theme::XP,
+            ));
         }
     }
 }

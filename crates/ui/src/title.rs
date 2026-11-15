@@ -11,19 +11,18 @@ pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Title), spawn_title);
 }
 
-const CONTROLS: [(&str, &str); 4] = [
-    ("MOVE", "WASD / ARROWS"),
-    ("SWORD", "SPACE / J / CLICK"),
-    ("DASH", "SHIFT / K"),
-    ("BOONS", "1  2  3"),
-];
+const CONTROLS: [(&str, &str); 4] =
+    [("MOVE", "WASD / ARROWS"), ("SWORD", "SPACE / J / CLICK"), ("DASH", "SHIFT / K"), ("BOONS", "1  2  3")];
 
 fn spawn_title(mut commands: Commands, library: Res<SpriteLibrary>) {
     commands.spawn((
         DespawnOnExit(GameState::Title),
         screen_root(),
         children![
-            (label("EMBERBOUND", font::LOGO, theme::EMBER), TextShadow { color: theme::FLAME, ..text_shadow(font::LOGO) }),
+            (
+                label("EMBERBOUND", font::LOGO, theme::EMBER),
+                TextShadow { color: theme::FLAME, ..text_shadow(font::LOGO) }
+            ),
             centered_label(
                 "THE LAST WYRMWARDEN AND HER HATCHLING AGAINST THREE ELDER DRAGONS",
                 font::BODY,
@@ -67,8 +66,16 @@ fn controls() -> impl Bundle {
         panel(Node { column_gap: px(34), padding: UiRect::axes(px(28), px(14)), ..default() }),
         Children::spawn(SpawnIter(CONTROLS.into_iter().map(|(action, keys)| {
             (
-                Node { flex_direction: FlexDirection::Column, align_items: AlignItems::Center, row_gap: px(4), ..default() },
-                children![label(action, font::SMALL, theme::EMBER), label(keys, font::BODY, theme::PARCHMENT)],
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    row_gap: px(4),
+                    ..default()
+                },
+                children![
+                    label(action, font::SMALL, theme::EMBER),
+                    label(keys, font::BODY, theme::PARCHMENT)
+                ],
             )
         }))),
     )

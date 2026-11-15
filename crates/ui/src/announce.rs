@@ -86,7 +86,9 @@ fn animate(
     mut banners: Query<(Entity, &mut Banner, &mut UiTransform, &mut BackgroundColor, &mut BorderColor)>,
     mut texts: Query<(&BannerText, &mut TextColor, &mut TextShadow)>,
 ) {
-    let Ok((entity, mut banner, mut transform, mut background, mut border)) = banners.single_mut() else { return };
+    let Ok((entity, mut banner, mut transform, mut background, mut border)) = banners.single_mut() else {
+        return;
+    };
     banner.age += time.delta_secs();
     if banner.age >= FADE_IN + HOLD + FADE_OUT {
         commands.entity(entity).despawn();

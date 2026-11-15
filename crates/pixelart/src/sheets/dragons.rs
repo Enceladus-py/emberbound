@@ -7,8 +7,8 @@
 use super::hash;
 use crate::canvas::{Canvas, Rgba};
 use crate::palette::{
-    BARK, BLUE, COAL, CREAM, FROST, GOLD, GRASS, GREEN, GREEN_DEEP, ICE, LIME, MAROON, ORANGE, OUTLINE,
-    RED, SAND, SKY, STEEL, STONE, STONE_DARK, STONE_LIGHT, TAN, WHITE,
+    BARK, BLUE, COAL, CREAM, FROST, GOLD, GRASS, GREEN, GREEN_DEEP, ICE, LIME, MAROON, ORANGE, OUTLINE, RED,
+    SAND, SKY, STEEL, STONE, STONE_DARK, STONE_LIGHT, TAN, WHITE,
 };
 
 type Point = (f32, f32);
@@ -180,7 +180,13 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
     }
     for angle in [62.0_f32, 86.0, 108.0, 130.0] {
         let (sin, cos) = angle.to_radians().sin_cos();
-        layer.spike((BODY.0 + 8.0 * cos, BODY.1 - 5.0 * sin), (cos * 0.5, -sin.max(0.9)), 3.0 + look.spike_reach, 1.6, look.spike);
+        layer.spike(
+            (BODY.0 + 8.0 * cos, BODY.1 - 5.0 * sin),
+            (cos * 0.5, -sin.max(0.9)),
+            3.0 + look.spike_reach,
+            1.6,
+            look.spike,
+        );
     }
 
     for &(t, p, _) in &tail {
@@ -223,7 +229,9 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
             for y in 0..size {
                 for x in 0..size {
                     let c = layer.canvas.get(x, y);
-                    let near_top = (1..=3).any(|d| layer.canvas.get(x, y - d)[3] == 0 || layer.canvas.get(x, y - d) == look.spike);
+                    let near_top = (1..=3).any(|d| {
+                        layer.canvas.get(x, y - d)[3] == 0 || layer.canvas.get(x, y - d) == look.spike
+                    });
                     if (c == mid || c == light) && near_top && hash(x as u32 / 2, y as u32 / 2, 9) % 3 == 0 {
                         layer.canvas.set(x, y, LIME);
                     }
@@ -302,7 +310,12 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
     // Far horn (the Moss Wyrm's antlers stay a single clean beam), then
     // the near horn sweeping back over the neck.
     if look.kind != Kind::Moss {
-        layer.taper([(38.0, 10.0), (36.0, 7.0), (34.0, 6.0), (38.5 - len * 0.8, 9.5 - len * 0.75)], girth * 0.8, 0.5, horn);
+        layer.taper(
+            [(38.0, 10.0), (36.0, 7.0), (34.0, 6.0), (38.5 - len * 0.8, 9.5 - len * 0.75)],
+            girth * 0.8,
+            0.5,
+            horn,
+        );
     }
     match look.kind {
         Kind::Moss => {
@@ -315,7 +328,11 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
         }
         Kind::Frost => {
             // A crown of ice shards.
-            for (base, dir, reach) in [((35.6, 10.6), (-0.5, -0.86), 6.0), ((34.6, 12.6), (-0.95, -0.3), 5.5), ((34.8, 15.2), (-0.9, 0.42), 4.5)] {
+            for (base, dir, reach) in [
+                ((35.6, 10.6), (-0.5, -0.86), 6.0),
+                ((34.6, 12.6), (-0.95, -0.3), 5.5),
+                ((34.8, 15.2), (-0.9, 0.42), 4.5),
+            ] {
                 layer.spike(base, dir, reach, 1.5, ICE);
                 layer.spike(base, dir, reach - 1.6, 0.7, WHITE);
             }
@@ -351,7 +368,15 @@ fn head(look: &Look, lift: f32, pulse: bool) -> Canvas {
 }
 
 /// A wing hinged on `shoulder`. `flap` runs from 1 (raised) to -1 (swept down).
-fn wing(look: &Look, lift: f32, shoulder: Point, flap: f32, scale: f32, membrane: [Rgba; 3], near: bool) -> Canvas {
+fn wing(
+    look: &Look,
+    lift: f32,
+    shoulder: Point,
+    flap: f32,
+    scale: f32,
+    membrane: [Rgba; 3],
+    near: bool,
+) -> Canvas {
     let mut layer = Layer::new(look, lift);
     let turn = (flap - 1.0) * 0.5 * 44.0;
     // Fold the fingers together a little on the downstroke.

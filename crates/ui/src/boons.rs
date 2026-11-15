@@ -43,7 +43,10 @@ fn spawn_overlay(mut commands: Commands, offer: Res<BoonOffer>) {
         },
         BackgroundColor(theme::NIGHT.with_alpha(0.78)),
         children![
-            (label("LEVEL UP", font::HEADLINE, theme::XP), TextShadow { color: theme::FLAME, ..text_shadow(font::HEADLINE) }),
+            (
+                label("LEVEL UP", font::HEADLINE, theme::XP),
+                TextShadow { color: theme::FLAME, ..text_shadow(font::HEADLINE) }
+            ),
             label("CHOOSE A BOON", font::BODY, theme::MUTED),
             (
                 CardRow,

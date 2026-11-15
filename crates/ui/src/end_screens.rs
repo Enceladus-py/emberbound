@@ -39,7 +39,13 @@ fn spawn_victory(mut commands: Commands, stats: Res<RunStats>, hero: Res<HeroSta
     ));
 }
 
-fn end_screen(headline: &str, verdict: &str, accent: Color, stats: &RunStats, hero: &HeroState) -> impl Bundle {
+fn end_screen(
+    headline: &str,
+    verdict: &str,
+    accent: Color,
+    stats: &RunStats,
+    hero: &HeroState,
+) -> impl Bundle {
     (
         screen_root(),
         children![

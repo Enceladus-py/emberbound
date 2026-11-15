@@ -2,8 +2,8 @@
 
 use bevy::prelude::*;
 use emberbound_core::{
-    Armor, Body, DashCooldown, Facing, GameSet, GameState, Health, HeroState, Invulnerable, Knockback, Player,
-    PlayerIntent, RunSetup, SpriteAnim, SpriteId, SpriteLibrary, Team, Terrain, Velocity, YSort,
+    Armor, Body, DashCooldown, Facing, GameSet, GameState, Health, HeroState, Invulnerable, Knockback,
+    Player, PlayerIntent, RunSetup, SpriteAnim, SpriteId, SpriteLibrary, Team, Terrain, Velocity, YSort,
 };
 
 /// Collision / hurt radius of the hero.

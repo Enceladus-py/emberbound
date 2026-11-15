@@ -36,7 +36,8 @@ impl Picture {
                     }
                     let at = (ty as usize * self.width + tx as usize) * 3;
                     for c in 0..3 {
-                        self.rgb[at + c] = ((px[c] as u32 * alpha + self.rgb[at + c] as u32 * (255 - alpha)) / 255) as u8;
+                        self.rgb[at + c] =
+                            ((px[c] as u32 * alpha + self.rgb[at + c] as u32 * (255 - alpha)) / 255) as u8;
                     }
                 }
             }
@@ -58,7 +59,8 @@ impl Picture {
             for row in 0..source.height {
                 let from = row * source.width * 3;
                 let to = (top + row) * width * 3;
-                joined.rgb[to..to + source.width * 3].copy_from_slice(&source.rgb[from..from + source.width * 3]);
+                joined.rgb[to..to + source.width * 3]
+                    .copy_from_slice(&source.rgb[from..from + source.width * 3]);
             }
         }
         *self = joined;
@@ -127,7 +129,8 @@ fn tile_fields(scale: i32) -> Picture {
     let tiles = [TileGrass, TileTallGrass, TileFlowers, TileDirt, TileSand, TileWater];
     let (cols, rows, gap) = (6, 4, 8);
     let field = 16 * scale * cols + gap;
-    let mut picture = Picture::new((field * 3 + gap) as usize, ((16 * scale * rows + gap) * 2 + gap) as usize);
+    let mut picture =
+        Picture::new((field * 3 + gap) as usize, ((16 * scale * rows + gap) * 2 + gap) as usize);
     for (i, id) in tiles.into_iter().enumerate() {
         let sprite = sheet(id);
         let (left, top) = (gap + (i as i32 % 3) * field, gap + (i as i32 / 3) * (16 * scale * rows + gap));
@@ -210,7 +213,18 @@ fn main() -> std::io::Result<()> {
     let mut picture = Picture::new(1, 0);
     if wants("actors") {
         picture.append(contact_sheet(
-            &[HeroIdle, HeroWalk, SlashArc, CompanionHatchling, CompanionFledgling, CompanionDrake, Slime, Bat, Goblin, Wyrmling],
+            &[
+                HeroIdle,
+                HeroWalk,
+                SlashArc,
+                CompanionHatchling,
+                CompanionFledgling,
+                CompanionDrake,
+                Slime,
+                Bat,
+                Goblin,
+                Wyrmling,
+            ],
             6,
             1120,
         ));

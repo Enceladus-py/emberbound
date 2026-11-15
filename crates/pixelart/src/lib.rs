@@ -176,8 +176,8 @@ mod tests {
             Ruin => (16, 24),
             Firebolt | VenomSpit | FrostShard | AshFlame | SlingStone | EmberOrb | Heart | Spark => (8, 8),
             Shadow => (12, 4),
-            HeroIdle | HeroWalk | CompanionFledgling | Slime | Bat | Goblin | Wyrmling | TileGrass | TileTallGrass
-            | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff => (16, 16),
+            HeroIdle | HeroWalk | CompanionFledgling | Slime | Bat | Goblin | Wyrmling | TileGrass
+            | TileTallGrass | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff => (16, 16),
         }
     }
 

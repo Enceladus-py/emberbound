@@ -139,7 +139,10 @@ pub fn sprite_image(library: &SpriteLibrary, id: SpriteId, scale: f32, fps: f32)
     (
         ImageNode::from_atlas_image(library.image(id), TextureAtlas { layout: library.layout(id), index: 0 }),
         Node { width: px(size.x), height: px(size.y), flex_shrink: 0.0, ..default() },
-        SpriteImageAnim { frames: library.frames(id), timer: Timer::from_seconds(1.0 / fps, TimerMode::Repeating) },
+        SpriteImageAnim {
+            frames: library.frames(id),
+            timer: Timer::from_seconds(1.0 / fps, TimerMode::Repeating),
+        },
     )
 }
 

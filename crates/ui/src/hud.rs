@@ -121,7 +121,12 @@ fn vitals() -> impl Bundle {
 
 fn run_facts() -> impl Bundle {
     (
-        panel(Node { padding: px(10).all(), width: px(250), align_items: AlignItems::FlexEnd, ..column(4.0) }),
+        panel(Node {
+            padding: px(10).all(),
+            width: px(250),
+            align_items: AlignItems::FlexEnd,
+            ..column(4.0)
+        }),
         children![
             (label("00:00", font::TITLE, theme::PARCHMENT), TimeText),
             (label("KILLS 0", font::SMALL, theme::MUTED), KillsText),
@@ -144,7 +149,12 @@ fn dragon_bars() -> impl Bundle {
             ),
             (
                 BossBox,
-                Node { width: percent(100), align_items: AlignItems::Center, display: Display::None, ..column(4.0) },
+                Node {
+                    width: percent(100),
+                    align_items: AlignItems::Center,
+                    display: Display::None,
+                    ..column(4.0)
+                },
                 children![
                     (shadowed_label("", font::TITLE, theme::PARCHMENT), BossName),
                     bar(BossFill, percent(100), px(20), theme::FLAME),
@@ -200,7 +210,10 @@ fn update_vitals(
     hero: Res<HeroState>,
     mut health_fill: Single<&mut Bar, (With<HealthFill>, Without<XpFill>, Without<DashFill>)>,
     mut xp_fill: Single<&mut Bar, (With<XpFill>, Without<HealthFill>, Without<DashFill>)>,
-    mut dash_fill: Single<(&mut Bar, &mut BackgroundColor), (With<DashFill>, Without<HealthFill>, Without<XpFill>)>,
+    mut dash_fill: Single<
+        (&mut Bar, &mut BackgroundColor),
+        (With<DashFill>, Without<HealthFill>, Without<XpFill>),
+    >,
     mut health_text: Single<&mut Text, (With<HealthText>, Without<LevelText>)>,
     mut level_text: Single<&mut Text, (With<LevelText>, Without<HealthText>)>,
 ) {
