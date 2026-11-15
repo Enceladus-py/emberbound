@@ -23,10 +23,7 @@ impl Plugin for SessionPlugin {
         app.init_resource::<PendingBoons>()
             .init_resource::<Aftermath>()
             .add_systems(OnEnter(GameState::InRun), reset_run.in_set(RunSetup::Reset))
-            .add_systems(
-                Update,
-                (track_run, grant_levels, offer_next_boon).chain().in_set(GameSet::Resolve),
-            )
+            .add_systems(Update, (track_run, grant_levels, offer_next_boon).chain().in_set(GameSet::Resolve))
             .add_systems(Update, apply_chosen_boon.run_if(in_state(RunPhase::ChoosingBoon)))
             .add_systems(Update, finish_run.run_if(in_state(GameState::InRun)))
             .add_systems(Update, start_run.run_if(not(in_state(GameState::InRun))));

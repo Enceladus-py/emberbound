@@ -33,6 +33,10 @@ emberbound_combat.workspace = true
 emberbound_monsters.workspace = true
 emberbound_ui.workspace = true
 
+[features]
+# Debug keys for play-testing (see src/cheats.rs). Never enabled in releases.
+cheats = []
+
 # Fast iteration: optimise dependencies even in dev builds.
 [profile.dev]
 opt-level = 1
