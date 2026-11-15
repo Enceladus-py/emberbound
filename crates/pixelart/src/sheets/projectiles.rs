@@ -3,25 +3,26 @@
 use crate::canvas::Canvas;
 use crate::palette::{CORAL, CREAM, GOLD, MAROON, ORANGE, PLUM, RED, WHITE, art, outlined_art};
 
+/// A comet: bright head on the right, embers trailing behind.
 const BOLT: [[&str; 8]; 2] = [
     [
         "........",
-        "..r.OO..",
-        ".rOOyyO.",
-        "rrOyYwYO",
-        ".rOyYwYO",
-        "r.OOyyO.",
-        "...rOO..",
+        "...r.OO.",
+        ".r.rOyyO",
+        "r.rOyYwY",
+        ".rrOyYwY",
+        "...rOyyO",
+        ".r...OO.",
         "........",
     ],
     [
         "........",
-        "r..OO...",
-        "..rOyyO.",
-        ".rOyYwYO",
-        "rrOyYwYO",
-        "..rOyyO.",
-        ".r..OO..",
+        ".r...OO.",
+        "...rOyyO",
+        ".rrOyYwY",
+        "r.rOyYwY",
+        ".r.rOyyO",
+        "...r.OO.",
         "........",
     ],
 ];
