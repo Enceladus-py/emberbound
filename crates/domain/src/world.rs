@@ -105,6 +105,93 @@ impl WorldMap {
     }
 }
 
+/// Shortest walking distances from every tile to one target tile. Walkers
+/// follow it downhill to reach the target around ponds, copses and rocks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowField {
+    width: i32,
+    height: i32,
+    target: (i32, i32),
+    /// Steps to the target per tile; [`FlowField::UNREACHABLE`] if cut off.
+    steps: Vec<u16>,
+}
+
+impl FlowField {
+    const UNREACHABLE: u16 = u16::MAX;
+
+    /// Floods outwards from `target` over walkable tiles (4-connected).
+    pub fn towards(map: &WorldMap, target: (i32, i32)) -> Self {
+        let (width, height) = (map.width as i32, map.height as i32);
+        let mut field =
+            Self { width, height, target, steps: vec![Self::UNREACHABLE; (width * height) as usize] };
+        let Some(start) = field.index(target.0, target.1) else { return field };
+        field.steps[start] = 0;
+        let mut queue = std::collections::VecDeque::from([target]);
+        while let Some((x, y)) = queue.pop_front() {
+            let next = field.steps_at(x, y) + 1;
+            for (nx, ny) in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] {
+                if let Some(i) = field.index(nx, ny)
+                    && field.steps[i] == Self::UNREACHABLE
+                    && map.tile(nx, ny).is_walkable()
+                {
+                    field.steps[i] = next;
+                    queue.push_back((nx, ny));
+                }
+            }
+        }
+        field
+    }
+
+    pub fn target(&self) -> (i32, i32) {
+        self.target
+    }
+
+    fn index(&self, x: i32, y: i32) -> Option<usize> {
+        (x >= 0 && y >= 0 && x < self.width && y < self.height).then(|| (y * self.width + x) as usize)
+    }
+
+    fn steps_at(&self, x: i32, y: i32) -> u16 {
+        self.index(x, y).map_or(Self::UNREACHABLE, |i| self.steps[i])
+    }
+
+    /// Walking steps from a tile to the target, if it can be reached.
+    pub fn steps(&self, x: i32, y: i32) -> Option<u32> {
+        let steps = self.steps_at(x, y);
+        (steps != Self::UNREACHABLE).then_some(steps as u32)
+    }
+
+    /// Unit direction a walker at this world position should head in. `None`
+    /// when already on the target tile or when the target cannot be reached.
+    /// Diagonal moves never cut across the corner of an obstacle.
+    pub fn direction(&self, wx: f32, wy: f32) -> Option<(f32, f32)> {
+        let (x, y) = WorldMap::tile_coords(wx, wy);
+        let here = self.steps_at(x, y);
+        if here == 0 || here == Self::UNREACHABLE {
+            return None;
+        }
+        let mut best: Option<(u16, bool, (i32, i32))> = None;
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+            let diagonal = dx != 0 && dy != 0;
+            let steps = self.steps_at(x + dx, y + dy);
+            let open_corner = !diagonal
+                || (self.steps_at(x + dx, y) != Self::UNREACHABLE
+                    && self.steps_at(x, y + dy) != Self::UNREACHABLE);
+            if steps >= here || !open_corner {
+                continue;
+            }
+            // Fewest steps wins; a diagonal breaks ties because it is shorter.
+            if best.is_none_or(|(s, d, _)| steps < s || (steps == s && diagonal && !d)) {
+                best = Some((steps, diagonal, (x + dx, y + dy)));
+            }
+        }
+        let (_, _, (tx, ty)) = best?;
+        let (cx, cy) = WorldMap::tile_center(tx, ty);
+        let (dx, dy) = (cx - wx, cy - wy);
+        let length = (dx * dx + dy * dy).sqrt();
+        (length > f32::EPSILON).then(|| (dx / length, dy / length))
+    }
+}
+
 /// Smooth value noise sampled from a coarse lattice of random values.
 struct ValueNoise {
     cols: usize,
@@ -225,5 +312,43 @@ mod tests {
         let (wx, wy) = WorldMap::tile_center(3, 9);
         assert_eq!(WorldMap::tile_coords(wx, wy), (3, 9));
         assert_eq!(WorldMap::tile_coords(-0.5, 0.0), (-1, 0));
+    }
+
+    #[test]
+    fn flow_field_leads_every_reachable_tile_to_the_target() {
+        let map = generate(48, 48, &mut TestRng(99));
+        let target = (24, 24);
+        let field = FlowField::towards(&map, target);
+        assert_eq!(field.steps(24, 24), Some(0));
+        let mut walked = 0;
+        for y in 0..48 {
+            for x in 0..48 {
+                let Some(mut remaining) = field.steps(x, y) else { continue };
+                // Follow the field tile by tile: it must strictly descend.
+                let (mut tx, mut ty) = (x, y);
+                while remaining > 0 {
+                    let (wx, wy) = WorldMap::tile_center(tx, ty);
+                    let (dx, dy) = field.direction(wx, wy).expect("reachable tile has a way on");
+                    (tx, ty) = WorldMap::tile_coords(wx + dx * TILE_SIZE * 1.2, wy + dy * TILE_SIZE * 1.2);
+                    assert!(map.tile(tx, ty).is_walkable(), "field led into an obstacle");
+                    let next = field.steps(tx, ty).unwrap();
+                    assert!(next < remaining);
+                    remaining = next;
+                }
+                assert_eq!((tx, ty), target);
+                walked += 1;
+            }
+        }
+        assert_eq!(walked, map.reachable_from_spawn());
+    }
+
+    #[test]
+    fn flow_field_has_no_direction_where_cut_off() {
+        let map = generate(32, 32, &mut TestRng(5));
+        let field = FlowField::towards(&map, (16, 16));
+        assert_eq!(field.direction(-50.0, -50.0), None);
+        let (cx, cy) = WorldMap::tile_center(16, 16);
+        assert_eq!(field.direction(cx, cy), None);
+        assert_eq!(field.steps(0, 0), None, "the forest border is solid");
     }
 }
