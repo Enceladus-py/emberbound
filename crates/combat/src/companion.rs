@@ -187,7 +187,7 @@ pub fn aim_and_fire(
             attack,
             radius: BOLT_RADIUS,
             lifetime: BOLT_LIFETIME,
-            pierce: 0,
+            pierce: stats.companion_pierce,
         });
     }
 }

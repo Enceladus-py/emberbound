@@ -8,8 +8,6 @@ use emberbound_core::{
 use emberbound_domain::ports::RandomSource;
 
 const PICKUP_FPS: f32 = 8.0;
-const HEART_HEAL: f32 = 20.0;
-const HEART_CHANCE: f32 = 0.06;
 const MONSTER_ORBS_MAX: u32 = 3;
 const DRAGON_ORBS: (u32, u32) = (10, 14);
 const DRAGON_HEARTS: usize = 2;
@@ -83,9 +81,11 @@ pub fn drop_loot(
     monsters: Query<&Monster>,
     dragons: Query<&Dragon>,
     library: Res<SpriteLibrary>,
+    hero_state: Res<HeroState>,
     mut rng: ResMut<GameRng>,
     mut commands: Commands,
 ) {
+    let (heart_chance, heart_heal) = (hero_state.stats.heart_chance, hero_state.stats.heart_heal);
     for death in deaths.read() {
         let at = death.position;
         if let Ok(monster) = monsters.get(death.entity) {
@@ -93,8 +93,8 @@ pub fn drop_loot(
             for share in shares(monster.xp_reward, orbs) {
                 spawn_pickup(&mut commands, &library, &mut rng, Reward::Embers(share), at, SCATTER_SPEED);
             }
-            if rng.chance(HEART_CHANCE) {
-                spawn_pickup(&mut commands, &library, &mut rng, Reward::Heart(HEART_HEAL), at, SCATTER_SPEED);
+            if rng.chance(heart_chance) {
+                spawn_pickup(&mut commands, &library, &mut rng, Reward::Heart(heart_heal), at, SCATTER_SPEED);
             }
         } else if let Ok(dragon) = dragons.get(death.entity) {
             let orbs = DRAGON_ORBS.0 + rng.index((DRAGON_ORBS.1 - DRAGON_ORBS.0 + 1) as usize) as u32;
@@ -102,7 +102,7 @@ pub fn drop_loot(
                 spawn_pickup(&mut commands, &library, &mut rng, Reward::Embers(share), at, SHOWER_SPEED);
             }
             for _ in 0..DRAGON_HEARTS {
-                spawn_pickup(&mut commands, &library, &mut rng, Reward::Heart(HEART_HEAL), at, SHOWER_SPEED);
+                spawn_pickup(&mut commands, &library, &mut rng, Reward::Heart(heart_heal), at, SHOWER_SPEED);
             }
         }
     }
@@ -139,6 +139,7 @@ pub fn drift(
 /// Hands pickups that reached the living hero over to them.
 pub fn collect(
     mut hero: Single<(&Transform, &mut Health), With<Player>>,
+    hero_state: Res<HeroState>,
     pickups: Query<(Entity, &Pickup)>,
     mut commands: Commands,
     mut collected: MessageWriter<XpCollected>,
@@ -154,7 +155,7 @@ pub fn collect(
         }
         match pickup.reward {
             Reward::Embers(amount) => {
-                collected.write(XpCollected { amount });
+                collected.write(XpCollected { amount: hero_state.stats.xp_for(amount) });
             }
             Reward::Heart(amount) => hero_health.heal(amount),
         }

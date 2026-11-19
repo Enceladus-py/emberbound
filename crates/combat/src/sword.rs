@@ -2,9 +2,10 @@
 
 use bevy::prelude::*;
 use emberbound_core::{
-    Body, DamageRequest, Facing, GameState, Health, HeroState, Player, PlayerIntent, SpriteId, SpriteLibrary,
-    Team, layer,
+    Body, DamageRequest, Facing, GameState, Health, HeroState, Player, PlayerIntent, SpawnProjectile,
+    SpriteId, SpriteLibrary, Team, layer,
 };
+use emberbound_domain::combat::AttackProfile;
 
 /// Half-angle of the arc that a swing covers, in degrees.
 const ARC_HALF_ANGLE_DEG: f32 = 75.0;
@@ -15,13 +16,25 @@ const SLASH_FPS: f32 = 20.0;
 const ARC_SPAN: f32 = 1.6;
 const ARC_OFFSET: f32 = 0.6;
 
+/// Crescent Wave: share of the sword's damage the flying crescent deals,
+/// and how it flies.
+const WAVE_DAMAGE: f32 = 0.7;
+const WAVE_SPEED: f32 = 175.0;
+const WAVE_RADIUS: f32 = 7.0;
+const WAVE_LIFETIME: f32 = 0.75;
+const WAVE_PIERCE: u32 = 4;
+
 /// Seconds until the next swing is allowed. Kept as a plain countdown because
-/// boons shorten `attack_cooldown` in the middle of a run.
+/// boons shorten `attack_cooldown` in the middle of a run. Also counts swings
+/// for boons that act on every n-th one.
 #[derive(Resource, Default)]
-pub struct SwingCooldown(f32);
+pub struct SwingCooldown {
+    remaining: f32,
+    swings: u32,
+}
 
 pub fn reset(mut cooldown: ResMut<SwingCooldown>) {
-    cooldown.0 = 0.0;
+    *cooldown = SwingCooldown::default();
 }
 
 pub fn swing(
@@ -34,14 +47,17 @@ pub fn swing(
     targets: Query<(Entity, &Transform, &Team, &Body), With<Health>>,
     mut commands: Commands,
     mut damage: MessageWriter<DamageRequest>,
+    mut projectiles: MessageWriter<SpawnProjectile>,
 ) {
-    cooldown.0 = (cooldown.0 - time.delta_secs()).max(0.0);
+    cooldown.remaining = (cooldown.remaining - time.delta_secs()).max(0.0);
     let (hero_transform, facing, health) = *hero;
-    if !intent.attack || health.is_dead() || cooldown.0 > 0.0 {
+    if !intent.attack || health.is_dead() || cooldown.remaining > 0.0 {
         return;
     }
     let stats = &hero_state.stats;
-    cooldown.0 = stats.attack_cooldown;
+    cooldown.remaining = stats.attack_cooldown;
+    cooldown.swings += 1;
+    let attack = stats.sword_attack(health.fraction());
 
     let origin = hero_transform.translation.truncate();
     let facing = facing.normalize_or(Vec2::X);
@@ -69,7 +85,20 @@ pub fn swing(
             continue;
         }
         if distance < POINT_BLANK || offset.dot(facing) >= distance * min_alignment {
-            damage.write(DamageRequest { target, attack: stats.attack, origin });
+            damage.write(DamageRequest { target, attack, origin });
         }
+    }
+
+    if stats.wave_every > 0 && cooldown.swings.is_multiple_of(stats.wave_every) {
+        projectiles.write(SpawnProjectile {
+            team: Team::Hero,
+            sprite: SpriteId::SlashWave,
+            position: origin + facing * reach * 0.5,
+            velocity: facing * WAVE_SPEED,
+            attack: AttackProfile { damage: attack.damage * WAVE_DAMAGE, ..attack },
+            radius: WAVE_RADIUS,
+            lifetime: WAVE_LIFETIME,
+            pierce: WAVE_PIERCE,
+        });
     }
 }
