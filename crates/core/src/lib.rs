@@ -12,8 +12,8 @@
 //! | Camera, tile map, hero entity, hero movement and dash, integrating [`Velocity`]/[`Knockback`] with terrain collision, y-sorting, screen shake | `world` |
 //! | Sword attack, projectiles, contact damage, resolving [`DamageRequest`], death, ember/heart pickups, the dragon companion, regeneration | `combat` |
 //! | The run director, spawning and AI of monsters and elder dragons | `monsters` |
-//! | HUD, title / boon / game-over / victory screens, announcements, damage numbers and other effects | `ui` |
-//! | Reading devices into [`PlayerIntent`], run reset, XP and levels, applying boons, state transitions | the `emberbound` binary |
+//! | HUD, on-screen touch controls, title / boon / game-over / victory screens, announcements, damage numbers and other effects | `ui` |
+//! | Reading devices into [`PlayerIntent`], [`InputMode`] and [`TouchPad`], run reset, XP and levels, applying boons, state transitions | the `emberbound` binary |
 //!
 //! ## Frame flow
 //!
@@ -25,12 +25,14 @@ mod messages;
 mod resources;
 mod sprites;
 mod state;
+mod touch;
 
 pub use components::*;
 pub use messages::*;
 pub use resources::*;
 pub use sprites::*;
 pub use state::*;
+pub use touch::*;
 
 pub use emberbound_pixelart::SpriteId;
 
@@ -61,5 +63,6 @@ impl Plugin for CorePlugin {
         messages::register(app);
         resources::register(app);
         sprites::register(app);
+        touch::register(app);
     }
 }
