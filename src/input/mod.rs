@@ -26,6 +26,7 @@ struct TouchIntent {
     attack: bool,
     dash: bool,
     confirm: bool,
+    tap: Option<Vec2>,
 }
 
 /// Merges every device into this frame's [`PlayerIntent`].
@@ -44,5 +45,6 @@ fn combine(
         dash: keyboard.dash || touch.dash,
         confirm: keyboard.confirm || touch.confirm,
         choice: keyboard.choice,
+        tap: touch.tap,
     };
 }

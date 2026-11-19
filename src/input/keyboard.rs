@@ -25,5 +25,6 @@ pub(super) fn read(keys: &ButtonInput<KeyCode>, mouse: &ButtonInput<MouseButton>
         ]
         .iter()
         .position(|pair| keys.any_just_pressed(*pair)),
+        tap: None,
     }
 }
