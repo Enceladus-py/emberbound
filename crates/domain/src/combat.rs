@@ -48,6 +48,11 @@ impl Health {
         }
     }
 
+    /// Brings the fallen back with `fraction` of their maximum health.
+    pub fn revive(&mut self, fraction: f32) {
+        self.current = (self.max * fraction.clamp(0.0, 1.0)).max(1.0);
+    }
+
     /// Changes the maximum; any gained capacity is also healed.
     pub fn set_max(&mut self, max: f32) {
         let max = max.max(1.0);
@@ -112,6 +117,15 @@ mod tests {
         hp.damage(10.0);
         hp.heal(5.0);
         assert!(hp.is_dead());
+    }
+
+    #[test]
+    fn revival_restores_a_share_of_health() {
+        let mut hp = Health::full(80.0);
+        hp.damage(500.0);
+        hp.revive(0.5);
+        assert!(!hp.is_dead());
+        assert_eq!(hp.current(), 40.0);
     }
 
     #[test]

@@ -7,6 +7,7 @@
 //! outside world is expressed as a port in [`ports`].
 
 pub mod bestiary;
+pub mod boons;
 pub mod combat;
 pub mod companion;
 pub mod encounter;

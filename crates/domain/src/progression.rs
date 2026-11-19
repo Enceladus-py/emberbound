@@ -1,7 +1,8 @@
-//! Progression context: experience, levels, hero stats and boons.
+//! Progression context: experience, levels and the hero's stats.
+//! The boons that change those stats live in [`crate::boons`].
 
+use crate::boons::Boon;
 use crate::combat::AttackProfile;
-use crate::ports::RandomSource;
 
 /// Experience and level of the hero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +53,11 @@ impl Progress {
     }
 }
 
+/// Below this fraction of health, [`HeroStats::last_stand`] kicks in.
+pub const LAST_STAND_BELOW: f32 = 0.35;
+const LAST_STAND_DAMAGE: f32 = 1.5;
+const LAST_STAND_SPEED: f32 = 1.15;
+
 /// Everything about the hero that boons can change.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HeroStats {
@@ -73,6 +79,30 @@ pub struct HeroStats {
     pub companion_damage: f32,
     /// Seconds between companion volleys.
     pub companion_cooldown: f32,
+    /// Extra enemies each fire bolt passes through.
+    pub companion_pierce: u32,
+    /// Damage per burn tick of the flames a dash leaves behind (0 = none).
+    pub dash_trail_damage: f32,
+    /// Damage dealt back to anything that hurts the hero by touch.
+    pub thorns: f32,
+    /// Health restored whenever the sword lands a critical hit.
+    pub crit_heal: f32,
+    /// Every n-th swing also hurls a crescent of light (0 = never).
+    pub wave_every: u32,
+    /// Harder and faster below [`LAST_STAND_BELOW`] health.
+    pub last_stand: bool,
+    /// Times per run a fatal blow is survived instead.
+    pub rebirths: u32,
+    /// Multiplier on the experience of collected embers.
+    pub xp_multiplier: f32,
+    /// Chance that a slain monster bursts into fire bolts.
+    pub corpse_burst_chance: f32,
+    /// Chance that a slain monster drops a heart.
+    pub heart_chance: f32,
+    /// Health restored by a heart.
+    pub heart_heal: f32,
+    /// How many times each boon was taken, indexed by `Boon as usize`.
+    stacks: [u8; Boon::ALL.len()],
 }
 
 impl Default for HeroStats {
@@ -89,112 +119,66 @@ impl Default for HeroStats {
             regen_per_second: 0.0,
             companion_damage: 6.0,
             companion_cooldown: 1.5,
-        }
-    }
-}
-
-/// A permanent upgrade offered on level up.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Boon {
-    WhettedEdge,
-    WardensVigor,
-    Fleetfoot,
-    KeenEye,
-    EmberHeart,
-    Wingbeat,
-    Lodestone,
-    Scalemail,
-    SweepingArc,
-    Kindling,
-    Fervor,
-    Stokedflame,
-}
-
-impl Boon {
-    pub const ALL: [Boon; 12] = [
-        Boon::WhettedEdge,
-        Boon::WardensVigor,
-        Boon::Fleetfoot,
-        Boon::KeenEye,
-        Boon::EmberHeart,
-        Boon::Wingbeat,
-        Boon::Lodestone,
-        Boon::Scalemail,
-        Boon::SweepingArc,
-        Boon::Kindling,
-        Boon::Fervor,
-        Boon::Stokedflame,
-    ];
-
-    pub fn title(self) -> &'static str {
-        match self {
-            Boon::WhettedEdge => "Whetted Edge",
-            Boon::WardensVigor => "Warden's Vigor",
-            Boon::Fleetfoot => "Fleetfoot",
-            Boon::KeenEye => "Keen Eye",
-            Boon::EmberHeart => "Ember Heart",
-            Boon::Wingbeat => "Wingbeat",
-            Boon::Lodestone => "Lodestone",
-            Boon::Scalemail => "Scalemail",
-            Boon::SweepingArc => "Sweeping Arc",
-            Boon::Kindling => "Kindling",
-            Boon::Fervor => "Fervor",
-            Boon::Stokedflame => "Stoked Flame",
-        }
-    }
-
-    pub fn description(self) -> &'static str {
-        match self {
-            Boon::WhettedEdge => "+25% sword damage",
-            Boon::WardensVigor => "+25 max health, and heal it",
-            Boon::Fleetfoot => "+12% movement speed",
-            Boon::KeenEye => "+10% critical chance",
-            Boon::EmberHeart => "+40% dragon bolt damage",
-            Boon::Wingbeat => "Dash recharges 25% faster",
-            Boon::Lodestone => "+50% ember pickup range",
-            Boon::Scalemail => "+2 armor",
-            Boon::SweepingArc => "+20% sword reach",
-            Boon::Kindling => "Regenerate 1 health per second",
-            Boon::Fervor => "Swing 15% faster",
-            Boon::Stokedflame => "Your dragon attacks 20% faster",
+            companion_pierce: 0,
+            dash_trail_damage: 0.0,
+            thorns: 0.0,
+            crit_heal: 0.0,
+            wave_every: 0,
+            last_stand: false,
+            rebirths: 0,
+            xp_multiplier: 1.0,
+            corpse_burst_chance: 0.0,
+            heart_chance: 0.06,
+            heart_heal: 20.0,
+            stacks: [0; Boon::ALL.len()],
         }
     }
 }
 
 impl HeroStats {
+    /// How many times `boon` has been taken this run.
+    pub fn stacks(&self, boon: Boon) -> u8 {
+        self.stacks[boon as usize]
+    }
+
+    /// Whether `boon` may still be offered.
+    pub fn can_take(&self, boon: Boon) -> bool {
+        boon.max_stacks().is_none_or(|max| self.stacks(boon) < max)
+    }
+
     /// Applies a boon permanently.
     pub fn apply(&mut self, boon: Boon) {
-        match boon {
-            Boon::WhettedEdge => self.attack.damage *= 1.25,
-            Boon::WardensVigor => self.max_health += 25.0,
-            Boon::Fleetfoot => self.move_speed *= 1.12,
-            Boon::KeenEye => self.attack.crit_chance = (self.attack.crit_chance + 0.10).min(1.0),
-            Boon::EmberHeart => self.companion_damage *= 1.4,
-            Boon::Wingbeat => self.dash_cooldown = (self.dash_cooldown * 0.75).max(0.3),
-            Boon::Lodestone => self.pickup_radius *= 1.5,
-            Boon::Scalemail => self.armor += 2.0,
-            Boon::SweepingArc => self.attack_reach *= 1.2,
-            Boon::Kindling => self.regen_per_second += 1.0,
-            Boon::Fervor => self.attack_cooldown = (self.attack_cooldown * 0.85).max(0.12),
-            Boon::Stokedflame => self.companion_cooldown = (self.companion_cooldown * 0.8).max(0.25),
-        }
+        self.stacks[boon as usize] = self.stacks[boon as usize].saturating_add(1);
+        boon.bless(self);
     }
-}
 
-/// Draws `count` distinct boons to offer the player.
-pub fn offer_boons(count: usize, rng: &mut dyn RandomSource) -> Vec<Boon> {
-    let mut pool = Boon::ALL.to_vec();
-    let mut offer = Vec::with_capacity(count);
-    while offer.len() < count && !pool.is_empty() {
-        offer.push(pool.swap_remove(rng.index(pool.len())));
+    fn in_last_stand(&self, health_fraction: f32) -> bool {
+        self.last_stand && health_fraction < LAST_STAND_BELOW
     }
-    offer
+
+    /// The sword blow at the given health.
+    pub fn sword_attack(&self, health_fraction: f32) -> AttackProfile {
+        let mut attack = self.attack;
+        if self.in_last_stand(health_fraction) {
+            attack.damage *= LAST_STAND_DAMAGE;
+        }
+        attack
+    }
+
+    /// Walking speed at the given health.
+    pub fn speed(&self, health_fraction: f32) -> f32 {
+        if self.in_last_stand(health_fraction) { self.move_speed * LAST_STAND_SPEED } else { self.move_speed }
+    }
+
+    /// Experience granted for embers worth `amount`.
+    pub fn xp_for(&self, amount: u32) -> u32 {
+        (amount as f32 * self.xp_multiplier).round() as u32
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::testing::TestRng;
 
     #[test]
     fn xp_carries_over_and_can_grant_several_levels() {
@@ -213,23 +197,20 @@ mod tests {
     }
 
     #[test]
-    fn offers_are_distinct() {
-        let mut rng = TestRng(42);
-        for _ in 0..50 {
-            let offer = offer_boons(3, &mut rng);
-            assert_eq!(offer.len(), 3);
-            assert!(offer[0] != offer[1] && offer[1] != offer[2] && offer[0] != offer[2]);
-        }
-        assert_eq!(offer_boons(99, &mut rng).len(), Boon::ALL.len());
+    fn last_stand_only_helps_when_low() {
+        let mut stats = HeroStats::default();
+        assert_eq!(stats.sword_attack(0.1), stats.attack);
+        stats.last_stand = true;
+        assert_eq!(stats.sword_attack(0.9), stats.attack);
+        assert!(stats.sword_attack(0.1).damage > stats.attack.damage);
+        assert!(stats.speed(0.1) > stats.speed(0.9));
     }
 
     #[test]
-    fn every_boon_changes_the_hero() {
-        for boon in Boon::ALL {
-            let mut stats = HeroStats::default();
-            stats.apply(boon);
-            assert_ne!(stats, HeroStats::default(), "{boon:?} had no effect");
-            assert!(!boon.title().is_empty() && !boon.description().is_empty());
-        }
+    fn embers_are_worth_more_with_a_multiplier() {
+        let mut stats = HeroStats::default();
+        assert_eq!(stats.xp_for(4), 4);
+        stats.xp_multiplier = 1.25;
+        assert_eq!(stats.xp_for(4), 5);
     }
 }
