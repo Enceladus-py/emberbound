@@ -9,6 +9,8 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use emberbound_pixelart::{self as pixelart, SpriteId};
 
 struct Entry {
+    /// CPU copy of the frames, for baking sprites into bigger images.
+    sheet: pixelart::SpriteSheet,
     image: Handle<Image>,
     layout: Handle<TextureAtlasLayout>,
     frames: usize,
@@ -79,6 +81,14 @@ impl SpriteLibrary {
     pub fn layout(&self, id: SpriteId) -> Handle<TextureAtlasLayout> {
         self.entry(id).layout.clone()
     }
+
+    /// RGBA8 pixels of one frame (wraps around), row-major from the top
+    /// row, [`Self::size`] large. For baking many static sprites into one
+    /// image instead of spawning thousands of entities.
+    pub fn pixels(&self, id: SpriteId, frame: usize) -> &[u8] {
+        let frames = &self.entry(id).sheet.frames;
+        &frames[frame % frames.len()]
+    }
 }
 
 /// Steps through the frames of an atlas sprite.
@@ -148,6 +158,7 @@ fn build_library(world: &mut World) -> SpriteLibrary {
             layout: world.resource_mut::<Assets<TextureAtlasLayout>>().add(layout),
             frames: sheet.frames.len(),
             size: Vec2::new(sheet.frame_width as f32, sheet.frame_height as f32),
+            sheet,
         };
         entries.insert(id, entry);
     }
