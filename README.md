@@ -21,6 +21,19 @@ image files at all.
 | Pick a boon | `1` `2` `3` |
 | Start / restart | `Enter` |
 
+### On a phone or tablet
+
+Hold the device in landscape. The first tap goes fullscreen where the
+browser allows it.
+
+| Action | Touch |
+|---|---|
+| Move | Thumb anywhere on the left side (a stick appears under it) |
+| Sword | Hold anywhere on the right side |
+| Dash | The DASH button above the sword |
+| Pick a boon | Tap a card |
+| Start / restart | Tap |
+
 ## Run it
 
 ```bash
