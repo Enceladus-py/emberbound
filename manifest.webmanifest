@@ -1,0 +1,11 @@
+{
+  "name": "Emberbound",
+  "short_name": "Emberbound",
+  "description": "A pixel-art dragon action RPG.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#12101a",
+  "theme_color": "#12101a"
+}
