@@ -667,11 +667,11 @@ fn hearth() -> Canvas {
     stack(&mut icon, &stone);
     let mantel = layer(|c| c.fill_rect(2, 4, 20, 3, BARK)).bevel(BARK, TAN, BARK_DARK, 1, 1);
     stack(&mut icon, &mantel);
-    let fire = layer(|c| {
-        flame(c, 12.0, 21.5, 12.0, 4.5, 0.0, &FIRE[..3]);
-        heart(c, 12.0, 17.0, 2.6, 2.6, RED);
-        c.set(11, 15, CORAL);
-    });
+    let fire = layer(|c| flame(c, 12.0, 22.0, 14.0, 4.8, 0.0, &FIRE[1..]));
     icon.blit_inside(&fire, 0, 0);
+    // Too small for the heart curve to keep its notch, so drawn by hand.
+    let mut love = Canvas::new(24, 24);
+    love.blit(&art(&[".rr.rr.", "rwRrrrr", "rRrrrrm", ".rrrrm.", "..rrm..", "...m..."]), 9, 14);
+    stack(&mut icon, &love);
     icon
 }

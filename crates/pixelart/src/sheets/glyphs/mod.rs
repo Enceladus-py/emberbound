@@ -62,7 +62,7 @@ pub fn fire_patch() -> Vec<Canvas> {
 /// A crescent of sword light flying right, convex side leading.
 pub fn slash_wave() -> Vec<Canvas> {
     const LIGHT: [Rgba; 4] = [WHITE, CREAM, GOLD, ORANGE];
-    [(4.6, 7.9, 0), (4.0, 8.2, 1), (5.0, 7.6, 2)]
+    [(5.6, 8.0, 0), (5.0, 8.3, 1), (6.0, 7.7, 2)]
         .into_iter()
         .map(|(thickness, r, frame)| {
             let mut wave = Canvas::new(16, 16);
