@@ -219,7 +219,9 @@ fn medallion(boon: Boon, color: Color, library: &SpriteLibrary) -> impl Bundle +
             flex_shrink: 0.0,
             ..default()
         },
-        BackgroundColor(theme::NIGHT),
+        // A plate tinted by the rarity, light enough for the icon's dark
+        // outline to read against it.
+        BackgroundColor(theme::PANEL_BORDER.mix(&color, 0.22)),
         BorderColor::all(color.with_alpha(0.7)),
         children![(
             ImageNode::from_atlas_image(
