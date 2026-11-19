@@ -4,16 +4,20 @@
 //! * `H` - smite every lesser monster on the map
 //! * `N` - smite the elder dragon
 //! * `T` - fill the hero's health
+//! * `B` - take the next boon in catalogue order (announced on screen)
 
 use bevy::prelude::*;
-use emberbound_core::{DamageRequest, Dragon, GameSet, Health, Monster, Player, XpCollected};
+use emberbound_core::{
+    Announce, Armor, DamageRequest, Dragon, GameSet, Health, HeroState, Monster, Player, XpCollected,
+};
+use emberbound_domain::boons::Boon;
 use emberbound_domain::combat::AttackProfile;
 
 pub struct CheatsPlugin;
 
 impl Plugin for CheatsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, cheat.in_set(GameSet::Input));
+        app.add_systems(Update, (cheat, bless).in_set(GameSet::Input));
     }
 }
 
@@ -44,4 +48,25 @@ fn cheat(
     {
         health.heal(99_999.0);
     }
+}
+
+/// Walks through the boon catalogue one key press at a time.
+fn bless(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut next: Local<usize>,
+    mut hero: ResMut<HeroState>,
+    mut player: Query<(&mut Health, &mut Armor), With<Player>>,
+    mut announce: MessageWriter<Announce>,
+) {
+    if !keys.just_pressed(KeyCode::KeyB) {
+        return;
+    }
+    let boon = Boon::ALL[*next % Boon::ALL.len()];
+    *next += 1;
+    hero.stats.apply(boon);
+    if let Ok((mut health, mut armor)) = player.single_mut() {
+        health.set_max(hero.stats.max_health);
+        armor.0 = hero.stats.armor;
+    }
+    announce.write(Announce { title: boon.title().to_uppercase(), subtitle: boon.description().into() });
 }
