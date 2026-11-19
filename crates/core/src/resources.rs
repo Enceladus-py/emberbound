@@ -18,6 +18,10 @@ pub struct PlayerIntent {
     pub confirm: bool,
     /// A numbered choice (0-based) was pressed this frame.
     pub choice: Option<usize>,
+    /// A finger tapped here this frame, in logical window pixels from the
+    /// top-left: a short touch that began and ended on the same menu
+    /// (title, boon choice or end screen). Never set while fighting.
+    pub tap: Option<Vec2>,
 }
 
 /// The hero's stats and progression for the current run.
