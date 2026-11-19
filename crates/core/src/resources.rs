@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use emberbound_domain::bestiary::DragonKind;
+use emberbound_domain::boons::Boon;
 use emberbound_domain::ports::RandomSource;
-use emberbound_domain::progression::{Boon, HeroStats, Progress};
+use emberbound_domain::progression::{HeroStats, Progress};
 use emberbound_domain::world::{self, WorldMap};
 
 /// Device-independent player input for this frame. Gameplay reads this, never

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use emberbound_domain::bestiary::{DragonKind, MonsterKind};
+use emberbound_domain::boons::Boon;
 use emberbound_domain::combat::AttackProfile;
-use emberbound_domain::progression::Boon;
 use emberbound_pixelart::SpriteId;
 
 use crate::Team;
