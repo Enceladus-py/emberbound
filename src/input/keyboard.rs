@@ -1,22 +1,10 @@
-//! Input adapter: translates keyboard and mouse into the device-independent
-//! [`PlayerIntent`] that gameplay reads.
+//! Keyboard and mouse.
 
 use bevy::prelude::*;
 use emberbound_core::PlayerIntent;
 
-pub struct InputPlugin;
-
-impl Plugin for InputPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, read_devices);
-    }
-}
-
-fn read_devices(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut intent: ResMut<PlayerIntent>,
-) {
+/// This frame's intent from the keyboard and mouse alone.
+pub(super) fn read(keys: &ButtonInput<KeyCode>, mouse: &ButtonInput<MouseButton>) -> PlayerIntent {
     let axis = |negative: [KeyCode; 2], positive: [KeyCode; 2]| {
         keys.any_pressed(positive) as i8 as f32 - keys.any_pressed(negative) as i8 as f32
     };
@@ -25,7 +13,7 @@ fn read_devices(
         axis([KeyCode::KeyS, KeyCode::ArrowDown], [KeyCode::KeyW, KeyCode::ArrowUp]),
     );
 
-    *intent = PlayerIntent {
+    PlayerIntent {
         movement: movement.normalize_or_zero(),
         attack: keys.any_pressed([KeyCode::Space, KeyCode::KeyJ]) || mouse.pressed(MouseButton::Left),
         dash: keys.any_just_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight, KeyCode::KeyK]),
@@ -37,5 +25,5 @@ fn read_devices(
         ]
         .iter()
         .position(|pair| keys.any_just_pressed(*pair)),
-    };
+    }
 }

@@ -33,6 +33,10 @@ emberbound_combat.workspace = true
 emberbound_monsters.workspace = true
 emberbound_ui.workspace = true
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Already in the tree through Bevy; used to ask the browser about its pointer.
+web-sys = { version = "0.3", features = ["Window", "MediaQueryList"] }
+
 [features]
 # Debug keys for play-testing (see src/cheats.rs). Never enabled in releases.
 cheats = []

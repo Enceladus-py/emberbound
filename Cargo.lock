@@ -2486,6 +2486,7 @@ dependencies = [
  "emberbound_monsters",
  "emberbound_ui",
  "emberbound_world",
+ "web-sys",
 ]
 
 [[package]]
