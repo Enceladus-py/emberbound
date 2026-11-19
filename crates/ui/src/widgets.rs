@@ -2,12 +2,12 @@
 //! generic animations (smooth bars, pulsing text, animated sprite images).
 
 use bevy::prelude::*;
-use emberbound_core::{SpriteId, SpriteLibrary};
+use emberbound_core::{InputMode, SpriteId, SpriteLibrary};
 
 use crate::theme;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.add_systems(Update, (animate_bars, pulse_text, animate_sprite_images));
+    app.add_systems(Update, (animate_bars, pulse_text, animate_sprite_images, speak_to_device));
 }
 
 /// A line of text in the default font.
@@ -62,6 +62,32 @@ pub fn panel(node: Node) -> impl Bundle {
         BackgroundColor(theme::PANEL),
         BorderColor::all(theme::PANEL_BORDER),
     )
+}
+
+/// A text that reads differently for keyboard and touch players, e.g.
+/// "PRESS ENTER" versus "TAP TO START". Spawn it with a [`Text`]; the
+/// wording follows [`InputMode`].
+#[derive(Component, Debug, Clone, Copy)]
+pub struct DeviceText {
+    pub keyboard: &'static str,
+    pub touch: &'static str,
+}
+
+/// A [`label`] whose wording follows the player's device.
+pub fn device_label(keyboard: &'static str, touch: &'static str, size: f32, color: Color) -> impl Bundle {
+    (label(keyboard, size, color), DeviceText { keyboard, touch })
+}
+
+fn speak_to_device(mode: Res<InputMode>, mut texts: Query<(Ref<DeviceText>, &mut Text)>) {
+    for (words, mut text) in &mut texts {
+        if mode.is_changed() || words.is_added() {
+            let wording = match *mode {
+                InputMode::Keyboard => words.keyboard,
+                InputMode::Touch => words.touch,
+            };
+            set_text(&mut text, wording.to_owned());
+        }
+    }
 }
 
 /// Changes a text only when it differs, sparing the text pipeline a

@@ -7,7 +7,7 @@ use emberbound_core::{DashCooldown, Dragon, GameState, Health, HeroState, Player
 use emberbound_domain::bestiary::{DragonKind, DragonPhase};
 
 use crate::theme::{self, font};
-use crate::widgets::{Bar, bar, clock, label, panel, set_text, shadowed_label};
+use crate::widgets::{Bar, bar, clock, device_label, label, panel, set_text, shadowed_label, text_shadow};
 
 /// Seconds of run time after which the controls hint starts to fade.
 const HINT_VISIBLE_SECONDS: f32 = 12.0;
@@ -176,11 +176,13 @@ fn hint() -> impl Bundle {
             ..default()
         },
         children![(
-            shadowed_label(
+            device_label(
                 "MOVE: WASD / ARROWS  -  SWORD: SPACE / J / CLICK  -  DASH: SHIFT / K",
+                "MOVE: LEFT THUMB  -  SWORD: HOLD RIGHT SIDE  -  DASH: DASH BUTTON",
                 font::SMALL,
                 theme::PARCHMENT,
             ),
+            text_shadow(font::SMALL),
             HintText,
         )],
     )

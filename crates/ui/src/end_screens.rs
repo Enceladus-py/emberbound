@@ -6,7 +6,7 @@ use emberbound_core::{GameState, HeroState, RunStats};
 use emberbound_domain::bestiary::DragonKind;
 
 use crate::theme::{self, font};
-use crate::widgets::{Pulse, centered_label, clock, label, panel, screen_root, text_shadow};
+use crate::widgets::{Pulse, centered_label, clock, device_label, label, panel, screen_root, text_shadow};
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::GameOver), spawn_game_over)
@@ -55,7 +55,10 @@ fn end_screen(
             ),
             centered_label(verdict, font::BODY, theme::MUTED),
             summary(stats, hero),
-            (label("PRESS ENTER TO PLAY AGAIN", font::TITLE, theme::PARCHMENT), Pulse),
+            (
+                device_label("PRESS ENTER TO PLAY AGAIN", "TAP TO PLAY AGAIN", font::TITLE, theme::PARCHMENT),
+                Pulse
+            ),
         ],
     )
 }

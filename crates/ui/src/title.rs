@@ -5,14 +5,21 @@ use bevy::prelude::*;
 use emberbound_core::{GameState, SpriteId, SpriteLibrary};
 
 use crate::theme::{self, font};
-use crate::widgets::{Pulse, centered_label, label, panel, screen_root, sprite_image, text_shadow};
+use crate::widgets::{
+    Pulse, centered_label, device_label, label, panel, screen_root, sprite_image, text_shadow,
+};
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Title), spawn_title);
 }
 
-const CONTROLS: [(&str, &str); 4] =
-    [("MOVE", "WASD / ARROWS"), ("SWORD", "SPACE / J / CLICK"), ("DASH", "SHIFT / K"), ("BOONS", "1  2  3")];
+/// Action, keyboard binding, touch binding.
+const CONTROLS: [(&str, &str, &str); 4] = [
+    ("MOVE", "WASD / ARROWS", "LEFT THUMB"),
+    ("SWORD", "SPACE / J / CLICK", "HOLD RIGHT SIDE"),
+    ("DASH", "SHIFT / K", "DASH BUTTON"),
+    ("BOONS", "1  2  3", "TAP A CARD"),
+];
 
 fn spawn_title(mut commands: Commands, library: Res<SpriteLibrary>) {
     commands.spawn((
@@ -30,7 +37,7 @@ fn spawn_title(mut commands: Commands, library: Res<SpriteLibrary>) {
             ),
             cast(&library),
             controls(),
-            (label("PRESS ENTER", font::TITLE, theme::PARCHMENT), Pulse),
+            (device_label("PRESS ENTER", "TAP TO START", font::TITLE, theme::PARCHMENT), Pulse),
         ],
     ));
 }
@@ -64,7 +71,7 @@ fn dragon(library: &SpriteLibrary, id: SpriteId) -> impl Bundle {
 fn controls() -> impl Bundle {
     (
         panel(Node { column_gap: px(34), padding: UiRect::axes(px(28), px(14)), ..default() }),
-        Children::spawn(SpawnIter(CONTROLS.into_iter().map(|(action, keys)| {
+        Children::spawn(SpawnIter(CONTROLS.into_iter().map(|(action, keys, touch)| {
             (
                 Node {
                     flex_direction: FlexDirection::Column,
@@ -74,7 +81,7 @@ fn controls() -> impl Bundle {
                 },
                 children![
                     label(action, font::SMALL, theme::EMBER),
-                    label(keys, font::BODY, theme::PARCHMENT)
+                    device_label(keys, touch, font::BODY, theme::PARCHMENT)
                 ],
             )
         }))),
