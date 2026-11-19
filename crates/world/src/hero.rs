@@ -100,7 +100,7 @@ fn steer_hero(
     mut player: Single<(&Health, &Dash, &mut Velocity, &mut Facing), With<Player>>,
 ) {
     let (health, dash, velocity, facing) = &mut *player;
-    let speed = hero.stats.move_speed;
+    let speed = hero.stats.speed(health.fraction());
     velocity.0 = if health.is_dead() {
         Vec2::ZERO
     } else if dash.remaining > 0.0 {
