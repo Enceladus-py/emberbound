@@ -7,7 +7,7 @@ use emberbound_core::{
     ActorDied, ActorKind, Armor, BoonChosen, BoonOffer, GameRng, GameSet, GameState, Health, HeroState,
     LeveledUp, Player, PlayerIntent, RunPhase, RunSetup, RunStats, Terrain, XpCollected,
 };
-use emberbound_domain::progression::offer_boons;
+use emberbound_domain::boons::offer_boons;
 use emberbound_domain::world;
 
 /// Size of the valley in tiles.
@@ -106,13 +106,14 @@ fn grant_levels(
 
 fn offer_next_boon(
     pending: Res<PendingBoons>,
+    hero: Res<HeroState>,
     aftermath: Res<Aftermath>,
     mut rng: ResMut<GameRng>,
     mut offer: ResMut<BoonOffer>,
     mut phase: ResMut<NextState<RunPhase>>,
 ) {
     if pending.0 > 0 && aftermath.0.is_none() {
-        offer.0 = offer_boons(BOONS_PER_OFFER, &mut *rng);
+        offer.0 = offer_boons(BOONS_PER_OFFER, &hero.stats, hero.progress.level(), &mut *rng);
         phase.set(RunPhase::ChoosingBoon);
     }
 }
@@ -137,7 +138,7 @@ fn apply_chosen_boon(
         }
         pending.0 -= 1;
         if pending.0 > 0 {
-            offer.0 = offer_boons(BOONS_PER_OFFER, &mut *rng);
+            offer.0 = offer_boons(BOONS_PER_OFFER, &hero.stats, hero.progress.level(), &mut *rng);
         } else {
             offer.0.clear();
             phase.set(RunPhase::Fighting);
