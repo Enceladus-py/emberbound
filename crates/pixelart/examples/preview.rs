@@ -2,7 +2,7 @@
 //! writes it as an uncompressed 24-bit BMP, so the art can be looked at
 //! without running the game.
 //!
-//! `cargo run -p emberbound_pixelart --example preview -- out.bmp [all|actors|dragons|world|scene]`
+//! `cargo run -p emberbound_pixelart --example preview -- out.bmp [all|actors|dragons|world|scene|glyphs]`
 
 use emberbound_pixelart::{SpriteId, SpriteSheet, sheet};
 use std::io::Write;
@@ -40,6 +40,14 @@ impl Picture {
                             ((px[c] as u32 * alpha + self.rgb[at + c] as u32 * (255 - alpha)) / 255) as u8;
                     }
                 }
+            }
+        }
+    }
+
+    fn fill(&mut self, x: usize, y: usize, w: usize, h: usize, color: [u8; 3]) {
+        for row in y..(y + h).min(self.height) {
+            for col in x..(x + w).min(self.width) {
+                self.rgb[(row * self.width + col) * 3..][..3].copy_from_slice(&color);
             }
         }
     }
@@ -114,6 +122,22 @@ fn contact_sheet(ids: &[SpriteId], scale: i32, width: usize) -> Picture {
         for frame in 0..sprite.frames.len() {
             picture.draw(&sprite, frame, x + frame as i32 * sprite.frame_width as i32 * scale, y, scale);
         }
+    }
+    picture
+}
+
+/// Every boon icon on a dark card-coloured tile, as the level-up cards show them.
+fn boon_cards(scale: i32) -> Picture {
+    const CARD: [u8; 3] = [0x1f, 0x1b, 0x2e];
+    let (cols, pad, gap) = (6, 8, 8);
+    let icons = sheet(SpriteId::BoonGlyphs);
+    let tile = (24 * scale + pad * 2) as usize;
+    let rows = icons.frames.len().div_ceil(cols);
+    let mut picture = Picture::new(cols * (tile + gap) + gap, rows * (tile + gap) + gap);
+    for i in 0..icons.frames.len() {
+        let (x, y) = (gap + (i % cols) * (tile + gap), gap + (i / cols) * (tile + gap));
+        picture.fill(x, y, tile, tile, CARD);
+        picture.draw(&icons, i, x as i32 + pad, y as i32 + pad, scale);
     }
     picture
 }
@@ -206,7 +230,7 @@ fn scene(scale: i32) -> Picture {
 fn main() -> std::io::Result<()> {
     use SpriteId::*;
     let mut args = std::env::args().skip(1);
-    let path = args.next().expect("usage: preview <out.bmp> [all|actors|dragons|world|scene]");
+    let path = args.next().expect("usage: preview <out.bmp> [all|actors|dragons|world|scene|glyphs]");
     let group = args.next().unwrap_or_else(|| "all".into());
     let wants = |name: &str| group == "all" || group == name;
 
@@ -247,6 +271,10 @@ fn main() -> std::io::Result<()> {
     }
     if wants("scene") {
         picture.append(scene(3));
+    }
+    if wants("glyphs") {
+        picture.append(boon_cards(4));
+        picture.append(contact_sheet(&[FirePatch, SlashWave], 6, 1120));
     }
     picture.write_bmp(&path)
 }
