@@ -66,10 +66,99 @@ pub enum SpriteId {
     Puff,
     /// 12x4 soft ground shadow.
     Shadow,
+    // --- Boon effects ---
+    /// 16x16 burning patch left on the ground (looping flicker).
+    FirePatch,
+    /// 16x16 crescent of sword-light flying RIGHT (projectile).
+    SlashWave,
+    // --- UI ---
+    /// 24x24 boon card icons: one frame per [`BoonGlyph`], in its order.
+    BoonGlyphs,
+}
+
+/// Pictures for boon cards. Frame `glyph as usize` of
+/// [`SpriteId::BoonGlyphs`] shows it. The art crate knows nothing about
+/// boons; the UI maps each boon to the glyph that fits it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BoonGlyph {
+    /// A sword with a glint on a whetstone.
+    Whetstone,
+    /// A shield with a heart on it.
+    ShieldHeart,
+    /// A winged boot.
+    WingedBoot,
+    /// A sharp eye.
+    Eye,
+    /// A heart made of flame.
+    FlameHeart,
+    /// A single dragon wing.
+    Wing,
+    /// A horseshoe magnet pulling embers.
+    Magnet,
+    /// Overlapping dragon scales.
+    Scales,
+    /// A wide crescent sweep.
+    Crescent,
+    /// A small campfire.
+    Campfire,
+    /// A sword with speed lines.
+    QuickSword,
+    /// A bellows puffing flame.
+    Bellows,
+    /// Burning footprints.
+    FlameSteps,
+    /// A thorny vine.
+    Thorns,
+    /// A blade dripping a blood drop.
+    BloodBlade,
+    /// A flying crescent wave of light.
+    Wave,
+    /// Two flames side by side.
+    TwinFlames,
+    /// A cracked shield, still standing.
+    CrackedShield,
+    /// A heart of cracked, glowing lava.
+    MoltenHeart,
+    /// A burning phoenix feather.
+    Feather,
+    /// A small pile of embers like coins.
+    EmberPile,
+    /// A skull wreathed in fire.
+    BurningSkull,
+    /// A hearth with a heart in its fire.
+    Hearth,
+}
+
+impl BoonGlyph {
+    pub const ALL: [BoonGlyph; 23] = [
+        BoonGlyph::Whetstone,
+        BoonGlyph::ShieldHeart,
+        BoonGlyph::WingedBoot,
+        BoonGlyph::Eye,
+        BoonGlyph::FlameHeart,
+        BoonGlyph::Wing,
+        BoonGlyph::Magnet,
+        BoonGlyph::Scales,
+        BoonGlyph::Crescent,
+        BoonGlyph::Campfire,
+        BoonGlyph::QuickSword,
+        BoonGlyph::Bellows,
+        BoonGlyph::FlameSteps,
+        BoonGlyph::Thorns,
+        BoonGlyph::BloodBlade,
+        BoonGlyph::Wave,
+        BoonGlyph::TwinFlames,
+        BoonGlyph::CrackedShield,
+        BoonGlyph::MoltenHeart,
+        BoonGlyph::Feather,
+        BoonGlyph::EmberPile,
+        BoonGlyph::BurningSkull,
+        BoonGlyph::Hearth,
+    ];
 }
 
 impl SpriteId {
-    pub const ALL: [SpriteId; 32] = [
+    pub const ALL: [SpriteId; 35] = [
         SpriteId::HeroIdle,
         SpriteId::HeroWalk,
         SpriteId::SlashArc,
@@ -102,6 +191,9 @@ impl SpriteId {
         SpriteId::Spark,
         SpriteId::Puff,
         SpriteId::Shadow,
+        SpriteId::FirePatch,
+        SpriteId::SlashWave,
+        SpriteId::BoonGlyphs,
     ];
 }
 
@@ -176,9 +268,17 @@ mod tests {
             Ruin => (16, 24),
             Firebolt | VenomSpit | FrostShard | AshFlame | SlingStone | EmberOrb | Heart | Spark => (8, 8),
             Shadow => (12, 4),
+            BoonGlyphs => (24, 24),
             HeroIdle | HeroWalk | CompanionFledgling | Slime | Bat | Goblin | Wyrmling | TileGrass
-            | TileTallGrass | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff => (16, 16),
+            | TileTallGrass | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff | FirePatch
+            | SlashWave => (16, 16),
         }
+    }
+
+    #[test]
+    fn there_is_one_boon_icon_per_glyph() {
+        assert_eq!(sheet(SpriteId::BoonGlyphs).frames.len(), BoonGlyph::ALL.len());
+        assert!(BoonGlyph::ALL.iter().enumerate().all(|(i, glyph)| *glyph as usize == i));
     }
 
     #[test]

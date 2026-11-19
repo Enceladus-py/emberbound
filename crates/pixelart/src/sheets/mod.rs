@@ -3,6 +3,7 @@
 mod companion;
 mod dragons;
 mod effects;
+mod glyphs;
 mod hero;
 mod monsters;
 mod projectiles;
@@ -45,6 +46,9 @@ pub fn sheet(id: SpriteId) -> SpriteSheet {
         SpriteId::Spark => effects::spark(),
         SpriteId::Puff => effects::puff(),
         SpriteId::Shadow => effects::shadow(),
+        SpriteId::FirePatch => glyphs::fire_patch(),
+        SpriteId::SlashWave => glyphs::slash_wave(),
+        SpriteId::BoonGlyphs => glyphs::boon_glyphs(),
     };
     SpriteSheet::from_frames(frames)
 }

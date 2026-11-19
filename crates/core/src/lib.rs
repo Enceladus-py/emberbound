@@ -34,7 +34,7 @@ pub use sprites::*;
 pub use state::*;
 pub use touch::*;
 
-pub use emberbound_pixelart::SpriteId;
+pub use emberbound_pixelart::{BoonGlyph, SpriteId};
 
 use bevy::prelude::*;
 
