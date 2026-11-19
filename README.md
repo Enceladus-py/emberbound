@@ -34,6 +34,26 @@ browser allows it.
 | Pick a boon | Tap a card |
 | Start / restart | Tap |
 
+## Boons
+
+Every level offers three boons. They come in three rarities, and the
+rarer ones change how a run plays rather than just its numbers:
+
+- **Common** (grey): steady upgrades such as Whetted Edge (+25% sword
+  damage), Scalemail (+2 armor), Thornhide (monsters that touch you get hurt)
+  or Ember Tithe (+25% experience).
+- **Rare** (frost): Ember Wake (your dash leaves a trail of fire), Sanguine
+  Edge (critical hits heal), Twin Flame (Cinder's bolts pierce), Wildfire
+  (slain monsters burst into fire bolts), Last Stand (stronger and faster
+  when wounded) and more.
+- **Legendary** (gold, smouldering frame): Crescent Wave (every third swing
+  hurls a piercing crescent of light), Phoenix Feather (survive one fatal
+  blow in a burst of flame) and Molten Heart (huge damage, but it is
+  *cursed* and costs 30 max health).
+
+Legendaries become likelier as you level. Most boons stack up to a limit;
+the card shows how many you already have.
+
 ## Run it
 
 ```bash
@@ -45,7 +65,8 @@ trunk serve --release        # http://localhost:8080
 A native window works too: `cargo run --release`.
 
 For play-testing, `--features cheats` adds debug keys (`G` embers, `H` smite
-monsters, `N` smite the dragon, `T` heal); see `src/cheats.rs`.
+monsters, `N` smite the dragon, `T` heal, `B` take the next boon); see
+`src/cheats.rs`.
 
 ```bash
 cargo test -p emberbound_domain -p emberbound_pixelart   # engine-free, fast
