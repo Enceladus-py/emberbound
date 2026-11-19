@@ -4,7 +4,7 @@
 use std::collections::VecDeque;
 
 use bevy::prelude::*;
-use emberbound_core::{Announce, GameState};
+use emberbound_core::{Announce, GameState, RunPhase};
 
 use crate::theme::{self, font};
 use crate::widgets::{centered_label, text_shadow};
@@ -18,7 +18,17 @@ const SLIDE: f32 = 26.0;
 pub(crate) fn plugin(app: &mut App) {
     app.init_resource::<Pending>()
         .add_systems(OnExit(GameState::InRun), clear_pending)
-        .add_systems(Update, (collect, show_next, animate).chain().run_if(in_state(GameState::InRun)));
+        .add_systems(
+            Update,
+            (
+                collect.run_if(in_state(GameState::InRun)),
+                // Banners wait while a boon is chosen, so they never cover the cards.
+                (show_next, animate).run_if(in_state(RunPhase::Fighting)),
+            )
+                .chain(),
+        )
+        .add_systems(OnEnter(RunPhase::ChoosingBoon), hide_banners)
+        .add_systems(OnExit(RunPhase::ChoosingBoon), show_banners);
 }
 
 /// Announcements waiting for the current banner to finish.
@@ -106,5 +116,17 @@ fn animate(
     for (base, mut color, mut shadow) in &mut texts {
         color.0 = base.0.with_alpha(alpha);
         shadow.color.set_alpha(0.8 * alpha);
+    }
+}
+
+fn hide_banners(mut banners: Query<&mut Visibility, With<Banner>>) {
+    for mut visibility in &mut banners {
+        *visibility = Visibility::Hidden;
+    }
+}
+
+fn show_banners(mut banners: Query<&mut Visibility, With<Banner>>) {
+    for mut visibility in &mut banners {
+        *visibility = Visibility::Inherited;
     }
 }
