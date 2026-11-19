@@ -13,6 +13,7 @@ mod boons;
 mod end_screens;
 mod fx;
 mod hud;
+mod pad;
 mod theme;
 mod title;
 mod widgets;
@@ -28,6 +29,7 @@ impl Plugin for UiPlugin {
             widgets::plugin,
             title::plugin,
             hud::plugin,
+            pad::plugin,
             boons::plugin,
             end_screens::plugin,
             announce::plugin,

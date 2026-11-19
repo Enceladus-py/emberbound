@@ -31,6 +31,7 @@ pub mod font {
 /// Stacking order of the full-screen UI layers.
 pub mod z {
     pub const HUD: i32 = 0;
+    pub const PAD: i32 = 5;
     pub const BOONS: i32 = 10;
     pub const BANNER: i32 = 20;
 }
