@@ -2,6 +2,7 @@
 //! the number keys (via [`PlayerIntent`]) or by clicking a card.
 
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use emberbound_core::{BoonChosen, BoonOffer, GameState, PlayerIntent, RunPhase};
 use emberbound_domain::progression::Boon;
 
@@ -10,7 +11,10 @@ use crate::widgets::{centered_label, label, panel, text_shadow};
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(RunPhase::ChoosingBoon), spawn_overlay)
-        .add_systems(Update, (choose_by_key, rebuild_cards).run_if(in_state(RunPhase::ChoosingBoon)))
+        .add_systems(
+            Update,
+            (choose_by_key, choose_by_tap, rebuild_cards).run_if(in_state(RunPhase::ChoosingBoon)),
+        )
         .add_observer(choose_by_click)
         .add_observer(highlight_card)
         .add_observer(unhighlight_card);
@@ -102,7 +106,30 @@ fn choose_by_key(intent: Res<PlayerIntent>, offer: Res<BoonOffer>, mut chosen: M
     }
 }
 
+/// Fingers choose through [`PlayerIntent::tap`]: picking can miss a quick
+/// tap from a brand-new touch pointer, so the card under the tap is found
+/// here instead.
+fn choose_by_tap(
+    intent: Res<PlayerIntent>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    cards: Query<(&BoonCard, &ComputedNode, &UiGlobalTransform)>,
+    mut chosen: MessageWriter<BoonChosen>,
+) {
+    let Some(tap) = intent.tap else { return };
+    // Layout is in physical pixels; taps are logical.
+    let point = tap * window.scale_factor();
+    if let Some((card, ..)) =
+        cards.iter().find(|(_, node, transform)| node.contains_point(**transform, point))
+    {
+        chosen.write(BoonChosen(card.0));
+    }
+}
+
+/// Mouse clicks; touches are handled by [`choose_by_tap`].
 fn choose_by_click(click: On<PointerClick>, cards: Query<&BoonCard>, mut chosen: MessageWriter<BoonChosen>) {
+    if click.pointer.id.is_touch() {
+        return;
+    }
     if let Ok(card) = cards.get(click.event_target()) {
         chosen.write(BoonChosen(card.0));
     }
