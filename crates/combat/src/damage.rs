@@ -197,3 +197,163 @@ pub fn bury(dying: Query<Entity, With<Dying>>, mut commands: Commands) {
         commands.entity(entity).try_despawn();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::RunSystemOnce;
+    use emberbound_domain::bestiary::MonsterKind;
+
+    use super::*;
+
+    const LETHAL: AttackProfile = AttackProfile::flat(1_000.0, 0.0);
+    const GRAZE: AttackProfile = AttackProfile::flat(10.0, 0.0);
+    const CRIT: AttackProfile =
+        AttackProfile { damage: 5.0, crit_chance: 1.0, crit_multiplier: 2.0, knockback: 0.0 };
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_message::<DamageRequest>()
+            .add_message::<DamageApplied>()
+            .add_message::<ActorDied>()
+            .add_message::<Announce>()
+            .add_message::<FxRequest>()
+            .init_resource::<HeroState>()
+            .init_resource::<Rebirths>()
+            .init_resource::<GameRng>()
+            .init_resource::<ScreenShake>()
+            .add_systems(Update, resolve);
+        app
+    }
+
+    fn spawn_hero(app: &mut App) -> Entity {
+        app.world_mut().spawn((Player, Transform::default(), Health::full(100.0))).id()
+    }
+
+    fn spawn_monster(app: &mut App) -> Entity {
+        let monster = Monster { kind: MonsterKind::Slime, xp_reward: 1 };
+        app.world_mut().spawn((monster, Transform::from_xyz(10.0, 0.0, 0.0), Health::full(20.0))).id()
+    }
+
+    fn hit(app: &mut App, target: Entity, attack: AttackProfile) {
+        app.world_mut().write_message(DamageRequest { target, attack, origin: Vec2::ZERO });
+    }
+
+    fn drain<M: Message>(app: &mut App) -> Vec<M> {
+        app.world_mut().resource_mut::<Messages<M>>().drain().collect()
+    }
+
+    fn health(app: &App, entity: Entity) -> f32 {
+        app.world().get::<Health>(entity).unwrap().current()
+    }
+
+    fn invulnerable(app: &App, entity: Entity) -> bool {
+        app.world().get::<Invulnerable>(entity).is_some()
+    }
+
+    #[test]
+    fn hero_is_hurt_at_most_once_per_frame() {
+        let mut app = app();
+        let hero = spawn_hero(&mut app);
+        hit(&mut app, hero, GRAZE);
+        hit(&mut app, hero, GRAZE);
+        app.update();
+
+        assert_eq!(health(&app, hero), 90.0);
+        assert_eq!(drain::<DamageApplied>(&mut app).len(), 1);
+        assert!(invulnerable(&app, hero), "a hurt hero gets a mercy window");
+    }
+
+    #[test]
+    fn two_lethal_blows_on_the_hero_land_once() {
+        let mut app = app();
+        let hero = spawn_hero(&mut app);
+        hit(&mut app, hero, LETHAL);
+        hit(&mut app, hero, LETHAL);
+        app.update();
+
+        assert_eq!(drain::<DamageApplied>(&mut app).len(), 1);
+        let died = drain::<ActorDied>(&mut app);
+        assert_eq!(died.len(), 1);
+        assert_eq!(died[0].kind, ActorKind::Hero);
+        assert!(app.world().get_entity(hero).is_ok(), "the hero entity stays");
+    }
+
+    #[test]
+    fn phoenix_feather_revives_the_hero_once() {
+        let mut app = app();
+        app.world_mut().resource_mut::<HeroState>().stats.rebirths = 1;
+        let hero = spawn_hero(&mut app);
+        hit(&mut app, hero, LETHAL);
+        app.update();
+
+        assert_eq!(health(&app, hero), 50.0);
+        assert!(invulnerable(&app, hero));
+        assert!(drain::<ActorDied>(&mut app).is_empty());
+        let applied = drain::<DamageApplied>(&mut app);
+        assert_eq!(applied.len(), 1);
+        assert!(!applied[0].fatal);
+        assert!(app.world().resource::<Rebirths>().blast_at.is_some());
+
+        // Once the rebirth's invulnerability wears off, the next lethal blow kills.
+        app.world_mut().entity_mut(hero).remove::<Invulnerable>();
+        hit(&mut app, hero, LETHAL);
+        app.update();
+
+        assert_eq!(health(&app, hero), 0.0);
+        let died = drain::<ActorDied>(&mut app);
+        assert_eq!(died.len(), 1);
+        assert_eq!(died[0].kind, ActorKind::Hero);
+    }
+
+    #[test]
+    fn a_slain_monster_dies_and_is_buried() {
+        let mut app = app();
+        let monster = spawn_monster(&mut app);
+        hit(&mut app, monster, LETHAL);
+        app.update();
+
+        let died = drain::<ActorDied>(&mut app);
+        assert_eq!(died.len(), 1);
+        assert_eq!(died[0].entity, monster);
+        assert_eq!(died[0].kind, ActorKind::Monster(MonsterKind::Slime));
+        assert!(app.world().get::<Dying>(monster).is_some());
+
+        app.world_mut().run_system_once(bury).unwrap();
+        assert!(app.world().get_entity(monster).is_err());
+    }
+
+    #[test]
+    fn dead_or_invulnerable_targets_are_ignored() {
+        let mut app = app();
+        let dead = spawn_monster(&mut app);
+        app.world_mut().get_mut::<Health>(dead).unwrap().damage(1_000.0);
+        let shielded = spawn_monster(&mut app);
+        app.world_mut().entity_mut(shielded).insert(Invulnerable::seconds(5.0));
+        hit(&mut app, dead, LETHAL);
+        hit(&mut app, shielded, LETHAL);
+        app.update();
+
+        assert!(drain::<DamageApplied>(&mut app).is_empty());
+        assert!(drain::<ActorDied>(&mut app).is_empty());
+        assert_eq!(health(&app, shielded), 20.0);
+        assert!(app.world().get::<Dying>(dead).is_none());
+    }
+
+    #[test]
+    fn sanguine_edge_heals_a_living_hero_only() {
+        let mut app = app();
+        app.world_mut().resource_mut::<HeroState>().stats.crit_heal = 5.0;
+        let hero = spawn_hero(&mut app);
+        app.world_mut().get_mut::<Health>(hero).unwrap().damage(30.0);
+        let monster = spawn_monster(&mut app);
+        hit(&mut app, monster, CRIT);
+        app.update();
+        assert_eq!(health(&app, hero), 75.0);
+
+        app.world_mut().get_mut::<Health>(hero).unwrap().damage(1_000.0);
+        hit(&mut app, monster, CRIT);
+        app.update();
+        assert_eq!(health(&app, hero), 0.0, "a dead hero is not healed");
+    }
+}
