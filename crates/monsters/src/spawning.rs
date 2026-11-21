@@ -127,7 +127,7 @@ impl Spawner<'_, '_> {
             DespawnOnExit(GameState::InRun),
             children![shadow(&self.sprites, shadow_drop, 1.0)],
         ));
-        attach_brain(&mut entity, spec, &mut *self.rng);
+        attach_brain(&mut entity, spec, &mut self.rng);
     }
 
     /// Spawns a monster just off-screen; skipped when no spot fits.

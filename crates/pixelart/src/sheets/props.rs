@@ -35,7 +35,7 @@ fn oak() -> Canvas {
     }
     for y in 0..24 {
         for x in 0..16 {
-            if tree.get(x, y) == GRASS && hash(x as u32, y as u32, 5) % 4 == 0 {
+            if tree.get(x, y) == GRASS && hash(x as u32, y as u32, 5).is_multiple_of(4) {
                 tree.set(x, y, LIME);
             }
         }
