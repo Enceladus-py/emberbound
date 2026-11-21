@@ -200,7 +200,6 @@ pub fn bury(dying: Query<Entity, With<Dying>>, mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
-    use bevy::ecs::system::RunSystemOnce;
     use emberbound_domain::bestiary::MonsterKind;
 
     use super::*;
@@ -222,7 +221,9 @@ mod tests {
             .init_resource::<Rebirths>()
             .init_resource::<GameRng>()
             .init_resource::<ScreenShake>()
-            .add_systems(Update, resolve);
+            // `bury` runs before `resolve` here so a slain actor keeps its
+            // `Dying` marker until the next update, where it is despawned.
+            .add_systems(Update, (bury.before(resolve), resolve));
         app
     }
 
@@ -265,6 +266,21 @@ mod tests {
     }
 
     #[test]
+    fn a_second_lethal_blow_cannot_undo_a_rebirth_in_the_same_frame() {
+        let mut app = app();
+        app.world_mut().resource_mut::<HeroState>().stats.rebirths = 1;
+        let hero = spawn_hero(&mut app);
+        hit(&mut app, hero, LETHAL);
+        hit(&mut app, hero, LETHAL);
+        app.update();
+
+        assert_eq!(health(&app, hero), 50.0);
+        assert_eq!(drain::<DamageApplied>(&mut app).len(), 1);
+        assert!(drain::<ActorDied>(&mut app).is_empty());
+        assert_eq!(app.world().resource::<Rebirths>().spent, 1);
+    }
+
+    #[test]
     fn two_lethal_blows_on_the_hero_land_once() {
         let mut app = app();
         let hero = spawn_hero(&mut app);
@@ -288,7 +304,8 @@ mod tests {
         app.update();
 
         assert_eq!(health(&app, hero), 50.0);
-        assert!(invulnerable(&app, hero));
+        let shield = app.world().get::<Invulnerable>(hero).expect("reborn hero is invulnerable");
+        assert_eq!(shield.0.duration().as_secs_f32(), REBIRTH_INVULNERABILITY);
         assert!(drain::<ActorDied>(&mut app).is_empty());
         let applied = drain::<DamageApplied>(&mut app);
         assert_eq!(applied.len(), 1);
@@ -319,7 +336,7 @@ mod tests {
         assert_eq!(died[0].kind, ActorKind::Monster(MonsterKind::Slime));
         assert!(app.world().get::<Dying>(monster).is_some());
 
-        app.world_mut().run_system_once(bury).unwrap();
+        app.update();
         assert!(app.world().get_entity(monster).is_err());
     }
 
@@ -330,13 +347,17 @@ mod tests {
         app.world_mut().get_mut::<Health>(dead).unwrap().damage(1_000.0);
         let shielded = spawn_monster(&mut app);
         app.world_mut().entity_mut(shielded).insert(Invulnerable::seconds(5.0));
+        let hero = spawn_hero(&mut app);
+        app.world_mut().entity_mut(hero).insert(Invulnerable::seconds(5.0));
         hit(&mut app, dead, LETHAL);
         hit(&mut app, shielded, LETHAL);
+        hit(&mut app, hero, LETHAL);
         app.update();
 
         assert!(drain::<DamageApplied>(&mut app).is_empty());
         assert!(drain::<ActorDied>(&mut app).is_empty());
         assert_eq!(health(&app, shielded), 20.0);
+        assert_eq!(health(&app, hero), 100.0);
         assert!(app.world().get::<Dying>(dead).is_none());
     }
 
@@ -351,6 +372,8 @@ mod tests {
         app.update();
         assert_eq!(health(&app, hero), 75.0);
 
+        // `resolve` still owes healing for this crit; it is `Health::heal`
+        // that refuses to bring a dead hero back.
         app.world_mut().get_mut::<Health>(hero).unwrap().damage(1_000.0);
         hit(&mut app, monster, CRIT);
         app.update();
