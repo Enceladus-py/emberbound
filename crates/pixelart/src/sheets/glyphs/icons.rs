@@ -375,9 +375,22 @@ fn bellows() -> Canvas {
 
 fn flame_steps() -> Canvas {
     // A right footprint glowing like a coal, its toes flickering flame tips.
+    #[rustfmt::skip]
     const FOOT: [&str; 14] = [
-        "..Y.....", ".yYy.y..", ".OYO.O.y", ".rOr.r.O", "......rr", "..rOOOr.", ".rOyyyOr", ".rOyYyOr",
-        ".rOyYyO.", "..rOyOr.", "..rOyOr.", "..rOyOr.", "..rOOOr.", "...rrr..",
+        "..Y.....",
+        ".yYy.y..",
+        ".OYO.O.y",
+        ".rOr.r.O",
+        "......rr",
+        "..rOOOr.",
+        ".rOyyyOr",
+        ".rOyYyOr",
+        ".rOyYyO.",
+        "..rOyOr.",
+        "..rOyOr.",
+        "..rOyOr.",
+        "..rOOOr.",
+        "...rrr..",
     ];
     let right = art(&FOOT);
     let mut left = Canvas::new(8, 14);
