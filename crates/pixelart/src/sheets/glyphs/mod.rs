@@ -92,7 +92,8 @@ mod tests {
             .iter()
             .zip(boon_glyphs())
             .filter(|(_, icon)| {
-                (0..24).any(|i| [(i, 0), (i, 23), (0, i), (23, i)].iter().any(|&(x, y)| icon.get(x, y)[3] > 0))
+                (0..24)
+                    .any(|i| [(i, 0), (i, 23), (0, i), (23, i)].iter().any(|&(x, y)| icon.get(x, y)[3] > 0))
             })
             .map(|(glyph, _)| *glyph)
             .collect();

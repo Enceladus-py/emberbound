@@ -35,9 +35,8 @@ impl Picture {
                         continue;
                     }
                     let at = (ty as usize * self.width + tx as usize) * 3;
-                    for c in 0..3 {
-                        self.rgb[at + c] =
-                            ((px[c] as u32 * alpha + self.rgb[at + c] as u32 * (255 - alpha)) / 255) as u8;
+                    for (dst, &src) in self.rgb[at..at + 3].iter_mut().zip(px) {
+                        *dst = ((src as u32 * alpha + *dst as u32 * (255 - alpha)) / 255) as u8;
                     }
                 }
             }
@@ -183,7 +182,7 @@ fn scene(scale: i32) -> Picture {
                 TileSand
             } else if ty == 6 || (tx == 9 && ty > 6) {
                 TileDirt
-            } else if scatter(tx, ty) % 7 == 0 {
+            } else if scatter(tx, ty).is_multiple_of(7) {
                 TileTallGrass
             } else if scatter(tx, ty) % 11 == 3 {
                 TileFlowers

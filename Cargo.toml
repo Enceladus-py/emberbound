@@ -7,6 +7,11 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+# Bevy systems routinely take many parameters and nested query types.
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+
 [workspace.dependencies]
 bevy = { version = "0.20.1", default-features = false, features = ["2d", "ui"] }
 emberbound_domain = { path = "crates/domain" }
@@ -32,6 +37,9 @@ emberbound_world.workspace = true
 emberbound_combat.workspace = true
 emberbound_monsters.workspace = true
 emberbound_ui.workspace = true
+
+[lints]
+workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Already in the tree through Bevy; used to ask the browser about its pointer.

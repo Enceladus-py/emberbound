@@ -201,7 +201,9 @@ fn wing() -> Canvas {
     let tips = [(21.5, 16.0), (15.0, 20.5), (8.0, 20.5)];
     // The trailing edge scallops up towards the wrist between finger tips.
     let mut outline = vec![shoulder, elbow, wrist, tips[0]];
-    for (from, to, pull) in [(tips[0], tips[1], (15.5, 11.0)), (tips[1], tips[2], (10.5, 13.0)), (tips[2], shoulder, (5.5, 14.5))] {
+    for (from, to, pull) in
+        [(tips[0], tips[1], (15.5, 11.0)), (tips[1], tips[2], (10.5, 13.0)), (tips[2], shoulder, (5.5, 14.5))]
+    {
         for i in 1..=6 {
             let t = i as f32 / 6.0;
             let (a, b, c) = ((1.0 - t) * (1.0 - t), 2.0 * t * (1.0 - t), t * t);
@@ -227,7 +229,6 @@ fn wing() -> Canvas {
     });
     icon.blit(&claw, 0, 0);
     icon
-
 }
 
 fn magnet() -> Canvas {
@@ -374,6 +375,7 @@ fn bellows() -> Canvas {
 
 fn flame_steps() -> Canvas {
     // A right footprint glowing like a coal, its toes flickering flame tips.
+    #[rustfmt::skip]
     const FOOT: [&str; 14] = [
         "..Y.....",
         ".yYy.y..",
@@ -435,13 +437,15 @@ fn thorns() -> Canvas {
             let (nx, ny) = (-ty * side, tx * side);
             let root = (p.0 + nx * 1.2, p.1 + ny * 1.2);
             let tip = (p.0 + nx * 5.5 + tx * 1.5, p.1 + ny * 5.5 + ty * 1.5);
-            c.polygon(&[(root.0 - tx * 1.8, root.1 - ty * 1.8), (root.0 + tx * 1.8, root.1 + ty * 1.8), tip], SAND);
+            c.polygon(
+                &[(root.0 - tx * 1.8, root.1 - ty * 1.8), (root.0 + tx * 1.8, root.1 + ty * 1.8), tip],
+                SAND,
+            );
         }
     })
     .bevel(SAND, SAND_LIGHT, TAN, 1, 1);
     stack(&mut icon, &thorns);
     icon
-
 }
 
 fn blood_blade() -> Canvas {

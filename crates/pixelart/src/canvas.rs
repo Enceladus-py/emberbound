@@ -172,7 +172,7 @@ impl Canvas {
                 }
             }
             crossings.sort_by(f32::total_cmp);
-            for pair in crossings.chunks_exact(2) {
+            for pair in crossings.as_chunks::<2>().0 {
                 for x in 0..self.width as i32 {
                     let xc = x as f32 + 0.5;
                     if xc >= pair[0] && xc < pair[1] {

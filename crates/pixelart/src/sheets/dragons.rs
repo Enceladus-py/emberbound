@@ -232,7 +232,10 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
                     let near_top = (1..=3).any(|d| {
                         layer.canvas.get(x, y - d)[3] == 0 || layer.canvas.get(x, y - d) == look.spike
                     });
-                    if (c == mid || c == light) && near_top && hash(x as u32 / 2, y as u32 / 2, 9) % 3 == 0 {
+                    if (c == mid || c == light)
+                        && near_top
+                        && hash(x as u32 / 2, y as u32 / 2, 9).is_multiple_of(3)
+                    {
                         layer.canvas.set(x, y, LIME);
                     }
                 }
@@ -242,7 +245,7 @@ fn torso(look: &Look, lift: f32, pulse: bool) -> Canvas {
             // Rime glitters on the scales.
             for y in 0..size {
                 for x in 0..size {
-                    if layer.canvas.get(x, y) == mid && hash(x as u32, y as u32, 4) % 11 == 0 {
+                    if layer.canvas.get(x, y) == mid && hash(x as u32, y as u32, 4).is_multiple_of(11) {
                         layer.canvas.set(x, y, FROST);
                     }
                 }
