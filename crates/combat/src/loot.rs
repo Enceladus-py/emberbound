@@ -162,3 +162,164 @@ pub fn collect(
         commands.entity(entity).try_despawn();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::state::app::StatesPlugin;
+    use emberbound_core::{ActorKind, CorePlugin};
+    use emberbound_domain::bestiary::{DragonKind, MonsterKind};
+
+    use super::*;
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin))
+            // The sprite library uploads into these; no renderer is needed.
+            .init_resource::<Assets<Image>>()
+            .init_resource::<Assets<TextureAtlasLayout>>()
+            .add_plugins(CorePlugin)
+            .insert_resource(GameRng::new(7))
+            .add_systems(Update, (drop_loot, collect));
+        // Hearts from ordinary monsters are left to chance; keep them out.
+        app.world_mut().resource_mut::<HeroState>().stats.heart_chance = 0.0;
+        app
+    }
+
+    fn spawn_hero(app: &mut App) -> Entity {
+        app.world_mut().spawn((Player, Transform::default(), Health::full(100.0))).id()
+    }
+
+    fn spawn_pickup_at(app: &mut App, reward: Reward, position: Vec2) -> Entity {
+        let pickup = Pickup { reward, position, velocity: Vec2::ZERO, phase: 0.0 };
+        app.world_mut().spawn((pickup, Transform::from_translation(position.extend(layer::PICKUP)))).id()
+    }
+
+    fn kill(app: &mut App, entity: Entity, kind: ActorKind) {
+        app.world_mut().write_message(ActorDied { entity, kind, position: Vec2::new(500.0, 500.0) });
+    }
+
+    fn rewards(app: &mut App) -> Vec<Reward> {
+        let world = app.world_mut();
+        world.query::<&Pickup>().iter(world).map(|pickup| pickup.reward).collect()
+    }
+
+    fn embers(rewards: &[Reward]) -> Vec<u32> {
+        rewards.iter().filter_map(|r| if let Reward::Embers(n) = r { Some(*n) } else { None }).collect()
+    }
+
+    fn hearts(rewards: &[Reward]) -> usize {
+        rewards.iter().filter(|r| matches!(r, Reward::Heart(_))).count()
+    }
+
+    fn drain<M: Message>(app: &mut App) -> Vec<M> {
+        app.world_mut().resource_mut::<Messages<M>>().drain().collect()
+    }
+
+    #[test]
+    fn shares_add_up_and_respect_the_part_count() {
+        for total in 0..=40 {
+            for parts in 0..=15 {
+                let split: Vec<u32> = shares(total, parts).collect();
+                assert_eq!(split.iter().sum::<u32>(), total, "total {total}, parts {parts}");
+                assert!(split.iter().all(|share| *share > 0), "total {total}, parts {parts}");
+                assert!(split.len() as u32 <= parts.max(1), "total {total}, parts {parts}");
+            }
+        }
+    }
+
+    #[test]
+    fn nothing_to_share_yields_nothing() {
+        assert_eq!(shares(0, 0).count(), 0);
+        assert_eq!(shares(0, 3).count(), 0);
+        assert_eq!(shares(2, 5).collect::<Vec<_>>(), vec![1, 1]);
+    }
+
+    #[test]
+    fn a_slain_monster_drops_embers_worth_its_reward() {
+        let mut app = app();
+        spawn_hero(&mut app);
+        for xp_reward in [1, 2, 7, 30] {
+            let monster = app.world_mut().spawn(Monster { kind: MonsterKind::Slime, xp_reward }).id();
+            kill(&mut app, monster, ActorKind::Monster(MonsterKind::Slime));
+            app.update();
+
+            let dropped = rewards(&mut app);
+            let orbs = embers(&dropped);
+            assert!((1..=MONSTER_ORBS_MAX as usize).contains(&orbs.len()), "{} orbs", orbs.len());
+            assert_eq!(orbs.iter().sum::<u32>(), xp_reward);
+            assert_eq!(hearts(&dropped), 0);
+
+            let world = app.world_mut();
+            let pickups: Vec<Entity> = world.query_filtered::<Entity, With<Pickup>>().iter(world).collect();
+            for pickup in pickups {
+                world.despawn(pickup);
+            }
+        }
+    }
+
+    #[test]
+    fn a_slain_dragon_always_drops_its_hearts() {
+        let mut app = app();
+        spawn_hero(&mut app);
+        let dragon = app.world_mut().spawn(Dragon { kind: DragonKind::MossWyrm, xp_reward: 120 }).id();
+        kill(&mut app, dragon, ActorKind::Dragon(DragonKind::MossWyrm));
+        app.update();
+
+        let dropped = rewards(&mut app);
+        assert_eq!(hearts(&dropped), DRAGON_HEARTS);
+        let orbs = embers(&dropped);
+        assert!(
+            (DRAGON_ORBS.0 as usize..=DRAGON_ORBS.1 as usize).contains(&orbs.len()),
+            "{} orbs",
+            orbs.len()
+        );
+        assert_eq!(orbs.iter().sum::<u32>(), 120);
+    }
+
+    #[test]
+    fn the_living_hero_collects_embers_within_reach() {
+        let mut app = app();
+        spawn_hero(&mut app);
+        app.world_mut().resource_mut::<HeroState>().stats.xp_multiplier = 1.5;
+        let near = spawn_pickup_at(&mut app, Reward::Embers(4), Vec2::new(COLLECT_RADIUS - 1.0, 0.0));
+        let far = spawn_pickup_at(&mut app, Reward::Embers(4), Vec2::new(COLLECT_RADIUS + 1.0, 0.0));
+        app.update();
+
+        assert!(app.world().get_entity(near).is_err(), "a reached pickup is gathered");
+        assert!(app.world().get_entity(far).is_ok(), "a distant pickup stays put");
+        let collected: Vec<u32> = drain::<XpCollected>(&mut app).iter().map(|m| m.amount).collect();
+        assert_eq!(collected, vec![6], "xp goes through the hero's multiplier");
+    }
+
+    #[test]
+    fn hearts_heal_but_never_beyond_max() {
+        let mut app = app();
+        let hero = spawn_hero(&mut app);
+        app.world_mut().get_mut::<Health>(hero).unwrap().damage(50.0);
+        spawn_pickup_at(&mut app, Reward::Heart(20.0), Vec2::ZERO);
+        app.update();
+        assert_eq!(app.world().get::<Health>(hero).unwrap().current(), 70.0);
+
+        spawn_pickup_at(&mut app, Reward::Heart(20.0), Vec2::ZERO);
+        spawn_pickup_at(&mut app, Reward::Heart(20.0), Vec2::ZERO);
+        app.update();
+        assert_eq!(app.world().get::<Health>(hero).unwrap().current(), 100.0);
+        assert_eq!(rewards(&mut app).len(), 0);
+        assert!(drain::<XpCollected>(&mut app).is_empty(), "hearts grant no xp");
+    }
+
+    #[test]
+    fn a_dead_hero_collects_nothing() {
+        let mut app = app();
+        let hero = spawn_hero(&mut app);
+        app.world_mut().get_mut::<Health>(hero).unwrap().damage(1_000.0);
+        let orb = spawn_pickup_at(&mut app, Reward::Embers(3), Vec2::ZERO);
+        let heart = spawn_pickup_at(&mut app, Reward::Heart(20.0), Vec2::ZERO);
+        app.update();
+
+        assert!(app.world().get_entity(orb).is_ok());
+        assert!(app.world().get_entity(heart).is_ok());
+        assert!(drain::<XpCollected>(&mut app).is_empty());
+        assert!(app.world().get::<Health>(hero).unwrap().is_dead());
+    }
+}
