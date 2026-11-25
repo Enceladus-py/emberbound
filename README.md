@@ -8,8 +8,9 @@ through the monsters of a procedurally generated valley, gather their embers,
 choose a boon every level, and lure out and slay three elder dragons: the Moss
 Wyrm, the Frost Drake and the Ashen Tyrant. Cinder grows up alongside you.
 
-Every sprite is drawn procedurally in code, so the repository contains no
-image files at all.
+Every sprite is drawn procedurally in code, and so is the pixel font (its
+glyphs are compiled into a TrueType file at start-up), so the repository
+contains no image or font files at all.
 
 ## Controls
 

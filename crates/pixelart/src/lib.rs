@@ -2,18 +2,21 @@
 //!
 //! Every sprite in the game is authored here, in code, as tiny palette-indexed
 //! grids that are rasterised to RGBA at start-up. The crate is engine-free:
-//! it only knows how to turn a [`SpriteId`] into pixels. The Bevy layer
-//! uploads those pixels to the GPU.
+//! it only knows how to turn a [`SpriteId`] into pixels, and the UI font
+//! into a TrueType file ([`pixel_font_ttf`]). The Bevy layer uploads those
+//! pixels to the GPU.
 //!
 //! Conventions: characters face **right** (the engine flips them), frames of
 //! one sprite all share the same size, and pixels are RGBA8, row-major,
 //! top row first.
 
 mod canvas;
+mod font;
 mod palette;
 mod sheets;
 
 pub use canvas::{Canvas, Rgba};
+pub use font::{CAP_HEIGHT, EM_PIXELS, pixel_font_ttf};
 
 /// Identifies every sprite (possibly animated) in the game.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
