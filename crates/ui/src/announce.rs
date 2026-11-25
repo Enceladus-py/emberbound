@@ -22,13 +22,16 @@ pub(crate) fn plugin(app: &mut App) {
             Update,
             (
                 collect.run_if(in_state(GameState::InRun)),
-                // Banners wait while a boon is chosen, so they never cover the cards.
+                // Banners wait while a boon is chosen or the run is paused, so
+                // they never cover the cards or the pause screen.
                 (show_next, animate).run_if(in_state(RunPhase::Fighting)),
             )
                 .chain(),
         )
         .add_systems(OnEnter(RunPhase::ChoosingBoon), hide_banners)
-        .add_systems(OnExit(RunPhase::ChoosingBoon), show_banners);
+        .add_systems(OnExit(RunPhase::ChoosingBoon), show_banners)
+        .add_systems(OnEnter(RunPhase::Paused), hide_banners)
+        .add_systems(OnExit(RunPhase::Paused), show_banners);
 }
 
 /// Announcements waiting for the current banner to finish.

@@ -17,11 +17,13 @@ pub struct PlayerIntent {
     pub dash: bool,
     /// Confirm / start was pressed this frame.
     pub confirm: bool,
+    /// Pause / resume was pressed this frame.
+    pub pause: bool,
     /// A numbered choice (0-based) was pressed this frame.
     pub choice: Option<usize>,
     /// A finger tapped here this frame, in logical window pixels from the
     /// top-left: a short touch that began and ended on the same menu
-    /// (title, boon choice or end screen). Never set while fighting.
+    /// (title, pause, boon choice or end screen). Never set while fighting.
     pub tap: Option<Vec2>,
 }
 

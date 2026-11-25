@@ -1,5 +1,5 @@
 //! Fingers: a floating thumb-stick on the left, the sword on the right
-//! with a dash button, and taps to get past the title and end screens.
+//! with a dash button, and taps to get past the title, pause and end screens.
 
 use bevy::input::touch::Touch;
 use bevy::prelude::*;

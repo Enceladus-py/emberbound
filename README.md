@@ -19,6 +19,7 @@ image files at all.
 | Sword | `Space` / `J` / left click (hold) |
 | Dash (brief invulnerability) | `Shift` / `K` |
 | Pick a boon | `1` `2` `3` |
+| Pause / resume | `Esc` / `P` (`Enter` also resumes) |
 | Start / restart | `Enter` |
 
 ### On a phone or tablet
@@ -32,6 +33,7 @@ browser allows it.
 | Sword | Hold anywhere on the right side |
 | Dash | The DASH button above the sword |
 | Pick a boon | Tap a card |
+| Resume | Tap (the run pauses itself when you switch apps or tabs) |
 | Start / restart | Tap |
 
 ## Boons
