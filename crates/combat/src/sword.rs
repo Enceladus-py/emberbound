@@ -68,14 +68,14 @@ pub fn swing(
     hero_state: Res<HeroState>,
     library: Res<SpriteLibrary>,
     mut cooldown: ResMut<SwingCooldown>,
-    mut hero: Single<(&Transform, &Facing, &Health, Option<&mut Aim>), With<Player>>,
+    hero: Single<(&Transform, &Facing, &Health, Option<&Aim>), With<Player>>,
     targets: Query<(Entity, &Transform, &Team, &Body), With<Health>>,
     mut commands: Commands,
     mut damage: MessageWriter<DamageRequest>,
     mut projectiles: MessageWriter<SpawnProjectile>,
 ) {
     cooldown.remaining = (cooldown.remaining - time.delta_secs()).max(0.0);
-    let (hero_transform, facing, health, aim) = &mut *hero;
+    let (hero_transform, facing, health, aim) = *hero;
     if !intent.attack || health.is_dead() || cooldown.remaining > 0.0 {
         return;
     }
@@ -85,14 +85,7 @@ pub fn swing(
     let attack = stats.sword_attack(health.fraction());
 
     let origin = hero_transform.translation.truncate();
-    let facing = match aim {
-        Some(aim) => {
-            aim.swinging = crate::aim::SWING_LOOK_SECONDS;
-            aim.direction
-        }
-        None => facing.0,
-    }
-    .normalize_or(Vec2::X);
+    let facing = aim.as_ref().map_or(facing.0, |aim| aim.direction).normalize_or(Vec2::X);
     let reach = stats.attack_reach;
 
     // The crescent sits near the middle of its frame: drawn ARC_SPAN reaches
@@ -231,7 +224,7 @@ mod tests {
     }
 
     #[test]
-    fn a_swing_follows_the_aim_and_turns_the_hero_that_way() {
+    fn a_swing_follows_the_aim() {
         let mut app = app();
         let hero = app.world_mut().query_filtered::<Entity, With<Player>>().single(app.world()).unwrap();
         // Facing right, aiming left.
@@ -241,6 +234,5 @@ mod tests {
         app.update();
 
         assert_eq!(struck(&mut app), vec![behind]);
-        assert!(app.world().get::<Aim>(hero).unwrap().swinging > 0.0);
     }
 }

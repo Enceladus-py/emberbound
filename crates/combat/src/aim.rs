@@ -19,12 +19,6 @@ const ASSIST_CONE_DEG: f32 = 60.0;
 /// units) further away: ahead wins near-ties, but a monster hugging the
 /// hero's back still beats one at the edge of reach in front.
 const BEHIND_PENALTY: f32 = 8.0;
-/// Seconds the hero keeps looking along the aim after the last swing. While
-/// the attack is held they look along it throughout, so walking one way
-/// while striking the other is a steady backpedal, not a flip every swing.
-/// Longer than the base swing cooldown, so tapped swings don't flicker
-/// either.
-pub(crate) const SWING_LOOK_SECONDS: f32 = 0.5;
 
 /// An enemy aim assist may pick: who, where relative to the hero, how big.
 #[derive(Debug, Clone, Copy)]
@@ -73,7 +67,6 @@ pub(crate) fn resolve_aim(
 
 /// Settles the hero's [`Aim`] for this frame, before the sword swings.
 pub fn aim(
-    time: Res<Time>,
     intent: Res<PlayerIntent>,
     hero_state: Res<HeroState>,
     cooldown: Res<SwingCooldown>,
@@ -96,8 +89,7 @@ pub fn aim(
     aim.direction = direction;
     aim.target = target;
     aim.ready = cooldown.is_ready();
-    aim.swinging =
-        if intent.attack { SWING_LOOK_SECONDS } else { (aim.swinging - time.delta_secs()).max(0.0) };
+    aim.deliberate = intent.aim.is_some();
 }
 
 #[cfg(test)]
@@ -181,42 +173,5 @@ mod tests {
         let mut dragon = enemy(0, 0.0, REACH + ASSIST_MARGIN + 15.0);
         dragon.radius = 22.0;
         assert_eq!(resolve_aim(None, Vec2::X, true, REACH, [dragon]).1, Some(dragon.entity));
-    }
-
-    #[test]
-    fn walking_away_while_striking_keeps_the_hero_looking_at_the_strike() {
-        use std::time::Duration;
-
-        use bevy::time::TimeUpdateStrategy;
-
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(50)))
-            .init_resource::<HeroState>()
-            .init_resource::<SwingCooldown>()
-            .insert_resource(PlayerIntent {
-                movement: Vec2::NEG_X,
-                aim: Some(Vec2::X),
-                attack: true,
-                ..default()
-            })
-            .add_systems(Update, aim);
-        let hero =
-            app.world_mut().spawn((Player, Transform::default(), Facing(Vec2::NEG_X), Aim::default())).id();
-
-        // Several swing cooldowns' worth of frames: never a frame facing away.
-        for _ in 0..40 {
-            app.update();
-            let aim = app.world().get::<Aim>(hero).unwrap();
-            assert_eq!(aim.direction, Vec2::X);
-            assert!(aim.swinging > 0.0);
-        }
-
-        // Let go: the hero turns back to where they walk shortly after.
-        app.world_mut().resource_mut::<PlayerIntent>().attack = false;
-        for _ in 0..20 {
-            app.update();
-        }
-        assert_eq!(app.world().get::<Aim>(hero).unwrap().swinging, 0.0);
     }
 }

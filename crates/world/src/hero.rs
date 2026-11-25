@@ -93,13 +93,15 @@ fn update_dash(
 }
 
 /// Turns intent into velocity and facing. A dash overrides steering; a dead
-/// hero stands still.
+/// hero stands still. An attacking hero faces their strike when it has a
+/// direction of its own (the player's aim or an assist lock), so walking one
+/// way while striking the other is a steady backpedal.
 fn steer_hero(
     intent: Res<PlayerIntent>,
     hero: Res<HeroState>,
-    mut player: Single<(&Health, &Dash, &mut Velocity, &mut Facing), With<Player>>,
+    mut player: Single<(&Health, &Dash, Option<&Aim>, &mut Velocity, &mut Facing), With<Player>>,
 ) {
-    let (health, dash, velocity, facing) = &mut *player;
+    let (health, dash, aim, velocity, facing) = &mut *player;
     let speed = hero.stats.speed(health.fraction());
     velocity.0 = if health.is_dead() {
         Vec2::ZERO
@@ -108,28 +110,27 @@ fn steer_hero(
     } else {
         intent.movement.clamp_length_max(1.0) * speed
     };
-    // Standing still keeps the last direction, so attacks still have an aim.
-    if let Some(direction) = velocity.0.try_normalize() {
+    // Without an aim of its own the strike follows facing, so facing must
+    // keep following movement then, or a keyboard player could never turn.
+    let strike = aim.filter(|aim| intent.attack && (aim.deliberate || aim.target.is_some()));
+    if let Some(aim) = strike {
+        facing.0 = aim.direction;
+    } else if let Some(direction) = velocity.0.try_normalize() {
+        // Standing still keeps the last direction, so attacks still have an aim.
         facing.0 = direction;
     }
 }
 
-/// Mirrors the sprite to look where the hero faces (or swings) and picks the idle or
+/// Mirrors the sprite to look where the hero faces and picks the idle or
 /// walk cycle.
 fn animate_hero(
     library: Res<SpriteLibrary>,
-    mut player: Single<(&Velocity, &Facing, Option<&Aim>, &mut Sprite, &mut SpriteAnim), With<Player>>,
+    mut player: Single<(&Velocity, &Facing, &mut Sprite, &mut SpriteAnim), With<Player>>,
 ) {
-    let (velocity, facing, aim, sprite, anim) = &mut *player;
-    // Mid-swing the hero looks where the sword goes, so it never seems to
-    // strike out of their back.
-    let look = match aim {
-        Some(aim) if aim.swinging > 0.0 => aim.direction,
-        _ => facing.0,
-    };
+    let (velocity, facing, sprite, anim) = &mut *player;
     // Straight up or down keeps the previous side.
-    if look.x != 0.0 {
-        let flip = look.x < 0.0;
+    if facing.x != 0.0 {
+        let flip = facing.x < 0.0;
         if sprite.flip_x != flip {
             sprite.flip_x = flip;
         }
@@ -141,4 +142,74 @@ fn animate_hero(
 pub(crate) fn register(app: &mut App) {
     app.add_systems(OnEnter(GameState::InRun), spawn_hero.in_set(RunSetup::Spawn))
         .add_systems(Update, (update_dash, steer_hero, animate_hero).chain().in_set(GameSet::Input));
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::state::app::StatesPlugin;
+    use emberbound_core::CorePlugin;
+
+    use super::*;
+
+    fn app(intent: PlayerIntent, aim: Aim) -> (App, Entity) {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin))
+            .init_resource::<Assets<Image>>()
+            .init_resource::<Assets<TextureAtlasLayout>>()
+            .add_plugins(CorePlugin)
+            .insert_resource(intent)
+            .add_systems(Update, steer_hero);
+        let hero = app
+            .world_mut()
+            .spawn((Player, Health::full(100.0), Dash::default(), Velocity::default(), Facing(Vec2::X), aim))
+            .id();
+        (app, hero)
+    }
+
+    fn facing(app: &App, hero: Entity) -> Vec2 {
+        app.world().get::<Facing>(hero).unwrap().0
+    }
+
+    fn walking_left(attack: bool) -> PlayerIntent {
+        PlayerIntent { movement: Vec2::NEG_X, attack, ..default() }
+    }
+
+    #[test]
+    fn walking_away_while_striking_with_the_mouse_keeps_facing_the_strike() {
+        let aim = Aim { direction: Vec2::X, deliberate: true, ..default() };
+        let (mut app, hero) = app(walking_left(true), aim);
+        for _ in 0..30 {
+            app.update();
+            assert_eq!(facing(&app, hero), Vec2::X);
+        }
+        // Let go and the hero turns to where they walk.
+        *app.world_mut().resource_mut::<PlayerIntent>() = walking_left(false);
+        app.update();
+        assert_eq!(facing(&app, hero), Vec2::NEG_X);
+    }
+
+    #[test]
+    fn striking_an_assisted_target_faces_it() {
+        let aim = Aim { direction: Vec2::Y, target: Some(Entity::PLACEHOLDER), ..default() };
+        let (mut app, hero) = app(walking_left(true), aim);
+        app.update();
+        assert_eq!(facing(&app, hero), Vec2::Y);
+    }
+
+    #[test]
+    fn a_keyboard_player_holding_attack_still_turns_as_they_walk() {
+        // No aim of its own: the strike just follows facing.
+        let aim = Aim { direction: Vec2::X, ..default() };
+        let (mut app, hero) = app(walking_left(true), aim);
+        app.update();
+        assert_eq!(facing(&app, hero), Vec2::NEG_X);
+    }
+
+    #[test]
+    fn aiming_without_striking_does_not_turn_the_hero() {
+        let aim = Aim { direction: Vec2::X, deliberate: true, ..default() };
+        let (mut app, hero) = app(walking_left(false), aim);
+        app.update();
+        assert_eq!(facing(&app, hero), Vec2::NEG_X);
+    }
 }
