@@ -33,7 +33,7 @@ browser allows it.
 | Action | Touch |
 |---|---|
 | Move | Thumb anywhere on the left side (a stick appears under it) |
-| Sword | Hold anywhere on the right side; slide that finger to aim |
+| Sword | Hold anywhere on the right side (a sword stick appears under it); slide past its inner ring to aim |
 | Dash | The DASH button above the sword |
 | Pick a boon | Tap a card |
 | Resume | Tap (the run pauses itself when you switch apps or tabs) |

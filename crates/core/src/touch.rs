@@ -26,10 +26,19 @@ pub struct Stick {
     pub knob: Vec2,
 }
 
+/// Share of the stick radius a sword finger must slide before it aims; the
+/// input adapter aims past it and the UI draws it as a ring.
+pub const AIM_DEAD_ZONE: f32 = 0.35;
+
 /// What the on-screen controls are doing this frame.
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq)]
 pub struct TouchPad {
+    /// The movement stick, while a thumb is on it.
     pub stick: Option<Stick>,
+    /// The sword stick, while a sword finger is down: it floats under the
+    /// finger like the movement stick and aims once slid past
+    /// [`AIM_DEAD_ZONE`]. Same radius as the movement stick.
+    pub aim: Option<Stick>,
     pub attack_held: bool,
     pub dash_held: bool,
 }
