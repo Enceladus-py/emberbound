@@ -55,7 +55,7 @@ struct BoonCard {
     lift: f32,
 }
 
-fn rarity_color(rarity: Rarity) -> Color {
+pub(crate) fn rarity_color(rarity: Rarity) -> Color {
     match rarity {
         Rarity::Common => theme::MUTED,
         Rarity::Rare => theme::FROST,
@@ -64,7 +64,7 @@ fn rarity_color(rarity: Rarity) -> Color {
 }
 
 /// The picture on each boon's card.
-fn glyph(boon: Boon) -> BoonGlyph {
+pub(crate) fn glyph(boon: Boon) -> BoonGlyph {
     match boon {
         Boon::WhettedEdge => BoonGlyph::Whetstone,
         Boon::WardensVigor => BoonGlyph::ShieldHeart,
