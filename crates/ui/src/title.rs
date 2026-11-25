@@ -16,7 +16,7 @@ pub(crate) fn plugin(app: &mut App) {
 /// Action, keyboard binding, touch binding.
 const CONTROLS: [(&str, &str, &str); 4] = [
     ("MOVE", "WASD / ARROWS", "LEFT THUMB"),
-    ("SWORD", "SPACE / J / CLICK", "HOLD RIGHT SIDE"),
+    ("SWORD", "SPACE / J / CLICK", "HOLD + SLIDE RIGHT"),
     ("DASH", "SHIFT / K", "DASH BUTTON"),
     ("BOONS", "1  2  3", "TAP A CARD"),
 ];

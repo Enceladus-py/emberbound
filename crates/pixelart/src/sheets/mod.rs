@@ -48,6 +48,8 @@ pub fn sheet(id: SpriteId) -> SpriteSheet {
         SpriteId::Shadow => effects::shadow(),
         SpriteId::FirePatch => glyphs::fire_patch(),
         SpriteId::SlashWave => glyphs::slash_wave(),
+        SpriteId::AimPointer => effects::aim_pointer(),
+        SpriteId::AimMark => effects::aim_mark(),
         SpriteId::BoonGlyphs => glyphs::boon_glyphs(),
     };
     SpriteSheet::from_frames(frames)

@@ -18,6 +18,7 @@ contains no image or font files at all.
 |---|---|
 | Move | `WASD` / arrow keys |
 | Sword | `Space` / `J` / left click (hold) |
+| Aim the sword | The mouse, while you use it; otherwise it turns to the nearest enemy in reach, or where you face |
 | Dash (brief invulnerability) | `Shift` / `K` |
 | Pick a boon | `1` `2` `3` |
 | Pause / resume | `Esc` / `P` (`Enter` also resumes) |
@@ -32,7 +33,7 @@ browser allows it.
 | Action | Touch |
 |---|---|
 | Move | Thumb anywhere on the left side (a stick appears under it) |
-| Sword | Hold anywhere on the right side |
+| Sword | Hold anywhere on the right side; slide that finger to aim |
 | Dash | The DASH button above the sword |
 | Pick a boon | Tap a card |
 | Resume | Tap (the run pauses itself when you switch apps or tabs) |

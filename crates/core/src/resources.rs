@@ -15,6 +15,10 @@ pub struct PlayerIntent {
     pub attack: bool,
     /// Dash was pressed this frame.
     pub dash: bool,
+    /// Where the player is deliberately aiming the sword (unit vector), from
+    /// the mouse while it is in use or a dragging sword finger. `None` leaves
+    /// the aim to aim assist and facing.
+    pub aim: Option<Vec2>,
     /// Confirm / start was pressed this frame.
     pub confirm: bool,
     /// Pause / resume was pressed this frame.

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use emberbound_core::{
-    Armor, Body, DashCooldown, Facing, GameSet, GameState, Health, HeroState, Invulnerable, Knockback,
+    Aim, Armor, Body, DashCooldown, Facing, GameSet, GameState, Health, HeroState, Invulnerable, Knockback,
     Player, PlayerIntent, RunSetup, SpriteAnim, SpriteId, SpriteLibrary, Team, Terrain, Velocity, YSort,
 };
 
@@ -47,7 +47,7 @@ fn spawn_hero(
         Transform::from_xyz(x, y, 0.0),
         (Health::full(stats.max_health), Armor(stats.armor), Team::Hero),
         (Velocity::default(), Knockback::default(), Body { radius: BODY_RADIUS, walks: true }),
-        (Facing::default(), YSort),
+        (Facing::default(), Aim::default(), YSort),
         (DashCooldown { remaining: 0.0, total: stats.dash_cooldown }, Dash::default()),
         DespawnOnExit(GameState::InRun),
         children![(
@@ -114,16 +114,22 @@ fn steer_hero(
     }
 }
 
-/// Mirrors the sprite to look where the hero faces and picks the idle or
+/// Mirrors the sprite to look where the hero faces (or swings) and picks the idle or
 /// walk cycle.
 fn animate_hero(
     library: Res<SpriteLibrary>,
-    mut player: Single<(&Velocity, &Facing, &mut Sprite, &mut SpriteAnim), With<Player>>,
+    mut player: Single<(&Velocity, &Facing, Option<&Aim>, &mut Sprite, &mut SpriteAnim), With<Player>>,
 ) {
-    let (velocity, facing, sprite, anim) = &mut *player;
+    let (velocity, facing, aim, sprite, anim) = &mut *player;
+    // Mid-swing the hero looks where the sword goes, so it never seems to
+    // strike out of their back.
+    let look = match aim {
+        Some(aim) if aim.swinging > 0.0 => aim.direction,
+        _ => facing.0,
+    };
     // Straight up or down keeps the previous side.
-    if facing.x != 0.0 {
-        let flip = facing.x < 0.0;
+    if look.x != 0.0 {
+        let flip = look.x < 0.0;
         if sprite.flip_x != flip {
             sprite.flip_x = flip;
         }
