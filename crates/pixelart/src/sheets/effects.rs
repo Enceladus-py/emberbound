@@ -112,3 +112,23 @@ pub fn shadow() -> Vec<Canvas> {
     shadow.ellipse(6.0, 2.0, 6.0, 2.0, [20, 12, 28, 90]);
     vec![shadow]
 }
+
+/// A cream arrowhead pointing right, outlined so it reads on any ground.
+pub fn aim_pointer() -> Vec<Canvas> {
+    vec![art(&["oo.....", "oYoo...", "oYYYoo.", "oYYYYYo", "oYYYoo.", "oYoo...", "oo....."])]
+}
+
+/// Gold corner brackets, open in the middle so the enemy stays visible.
+pub fn aim_mark() -> Vec<Canvas> {
+    vec![art(&[
+        "yyy...yyy",
+        "y.......y",
+        "y.......y",
+        ".........",
+        ".........",
+        ".........",
+        "y.......y",
+        "y.......y",
+        "yyy...yyy",
+    ])]
+}

@@ -80,6 +80,29 @@ impl Default for Facing {
     }
 }
 
+/// Where the hero's next sword swing goes, settled every frame by `combat`
+/// from the player's explicit aim, aim assist or [`Facing`]. Read by `world`
+/// (an attacking hero turns to face a chosen or assisted aim) and `ui` (the
+/// aim pointer).
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct Aim {
+    /// Unit vector.
+    pub direction: Vec2,
+    /// The enemy aim assist locked onto, if that is what chose the direction.
+    pub target: Option<Entity>,
+    /// The sword can swing right now.
+    pub ready: bool,
+    /// The player chose this direction (mouse or a sliding sword finger),
+    /// rather than aim assist or facing.
+    pub deliberate: bool,
+}
+
+impl Default for Aim {
+    fn default() -> Self {
+        Self { direction: Vec2::X, target: None, ready: true, deliberate: false }
+    }
+}
+
 /// Hurts the opposing team on touch (applied by `combat`).
 #[derive(Component, Debug, Clone, Copy)]
 pub struct ContactDamage(pub f32);

@@ -1,8 +1,9 @@
-//! The hero's sword: a short arc swung along the facing direction.
+//! The hero's sword: a short arc swung along the hero's [`Aim`] (see
+//! [`crate::aim`]), or along facing where there is no aim.
 
 use bevy::prelude::*;
 use emberbound_core::{
-    Body, DamageRequest, Facing, GameState, Health, HeroState, Player, PlayerIntent, SpawnProjectile,
+    Aim, Body, DamageRequest, Facing, GameState, Health, HeroState, Player, PlayerIntent, SpawnProjectile,
     SpriteId, SpriteLibrary, Team, layer,
 };
 use emberbound_domain::combat::AttackProfile;
@@ -33,6 +34,13 @@ pub struct SwingCooldown {
     swings: u32,
 }
 
+impl SwingCooldown {
+    /// Whether the next swing may happen now.
+    pub fn is_ready(&self) -> bool {
+        self.remaining <= 0.0
+    }
+}
+
 pub fn reset(mut cooldown: ResMut<SwingCooldown>) {
     *cooldown = SwingCooldown::default();
 }
@@ -60,14 +68,14 @@ pub fn swing(
     hero_state: Res<HeroState>,
     library: Res<SpriteLibrary>,
     mut cooldown: ResMut<SwingCooldown>,
-    hero: Single<(&Transform, &Facing, &Health), With<Player>>,
+    hero: Single<(&Transform, &Facing, &Health, Option<&Aim>), With<Player>>,
     targets: Query<(Entity, &Transform, &Team, &Body), With<Health>>,
     mut commands: Commands,
     mut damage: MessageWriter<DamageRequest>,
     mut projectiles: MessageWriter<SpawnProjectile>,
 ) {
     cooldown.remaining = (cooldown.remaining - time.delta_secs()).max(0.0);
-    let (hero_transform, facing, health) = *hero;
+    let (hero_transform, facing, health, aim) = *hero;
     if !intent.attack || health.is_dead() || cooldown.remaining > 0.0 {
         return;
     }
@@ -77,7 +85,7 @@ pub fn swing(
     let attack = stats.sword_attack(health.fraction());
 
     let origin = hero_transform.translation.truncate();
-    let facing = facing.normalize_or(Vec2::X);
+    let facing = aim.as_ref().map_or(facing.0, |aim| aim.direction).normalize_or(Vec2::X);
     let reach = stats.attack_reach;
 
     // The crescent sits near the middle of its frame: drawn ARC_SPAN reaches
@@ -213,5 +221,18 @@ mod tests {
         app.update();
 
         assert_eq!(struck(&mut app), vec![dragon]);
+    }
+
+    #[test]
+    fn a_swing_follows_the_aim() {
+        let mut app = app();
+        let hero = app.world_mut().query_filtered::<Entity, With<Player>>().single(app.world()).unwrap();
+        // Facing right, aiming left.
+        app.world_mut().entity_mut(hero).insert(Aim { direction: Vec2::NEG_X, ..Aim::default() });
+        let behind = spawn_target(&mut app, Team::Horde, at(180.0, 20.0), SMALL);
+        spawn_target(&mut app, Team::Horde, at(0.0, 20.0), SMALL);
+        app.update();
+
+        assert_eq!(struck(&mut app), vec![behind]);
     }
 }

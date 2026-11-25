@@ -17,6 +17,7 @@ pub(super) fn read(keys: &ButtonInput<KeyCode>, mouse: &ButtonInput<MouseButton>
         movement: movement.normalize_or_zero(),
         attack: keys.any_pressed([KeyCode::Space, KeyCode::KeyJ]) || mouse.pressed(MouseButton::Left),
         dash: keys.any_just_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight, KeyCode::KeyK]),
+        aim: None,
         confirm: keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space]),
         pause: keys.any_just_pressed([KeyCode::Escape, KeyCode::KeyP]),
         minimap: keys.just_pressed(KeyCode::KeyM),

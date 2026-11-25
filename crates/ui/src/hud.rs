@@ -199,7 +199,7 @@ fn hint() -> impl Bundle {
         children![(
             device_label(
                 "MOVE: WASD / ARROWS  -  SWORD: SPACE / J / CLICK  -  DASH: SHIFT / K  -  PAUSE: ESC",
-                "MOVE: LEFT THUMB  -  SWORD: HOLD RIGHT SIDE  -  DASH: DASH BUTTON",
+                "MOVE: LEFT THUMB  -  SWORD: HOLD RIGHT SIDE, SLIDE TO AIM  -  DASH: DASH BUTTON",
                 font::SMALL,
                 theme::PARCHMENT,
             ),

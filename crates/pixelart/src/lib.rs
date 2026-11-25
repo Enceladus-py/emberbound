@@ -74,6 +74,11 @@ pub enum SpriteId {
     FirePatch,
     /// 16x16 crescent of sword-light flying RIGHT (projectile).
     SlashWave,
+    // --- Aiming ---
+    /// 7x7 arrowhead pointing RIGHT: where the next swing goes.
+    AimPointer,
+    /// 9x9 corner brackets framing the enemy aim assist locked onto.
+    AimMark,
     // --- UI ---
     /// 24x24 boon card icons: one frame per [`BoonGlyph`], in its order.
     BoonGlyphs,
@@ -161,7 +166,7 @@ impl BoonGlyph {
 }
 
 impl SpriteId {
-    pub const ALL: [SpriteId; 35] = [
+    pub const ALL: [SpriteId; 37] = [
         SpriteId::HeroIdle,
         SpriteId::HeroWalk,
         SpriteId::SlashArc,
@@ -196,6 +201,8 @@ impl SpriteId {
         SpriteId::Shadow,
         SpriteId::FirePatch,
         SpriteId::SlashWave,
+        SpriteId::AimPointer,
+        SpriteId::AimMark,
         SpriteId::BoonGlyphs,
     ];
 }
@@ -272,6 +279,8 @@ mod tests {
             Firebolt | VenomSpit | FrostShard | AshFlame | SlingStone | EmberOrb | Heart | Spark => (8, 8),
             Shadow => (12, 4),
             BoonGlyphs => (24, 24),
+            AimPointer => (7, 7),
+            AimMark => (9, 9),
             HeroIdle | HeroWalk | CompanionFledgling | Slime | Bat | Goblin | Wyrmling | TileGrass
             | TileTallGrass | TileFlowers | TileDirt | TileSand | TileWater | Rock | Puff | FirePatch
             | SlashWave => (16, 16),

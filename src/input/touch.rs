@@ -1,10 +1,10 @@
-//! Fingers: a floating thumb-stick on the left, the sword on the right
-//! with a dash button, and taps to get past the title, pause and end screens.
+//! Fingers: a floating thumb-stick on the left, a floating sword stick on
+//! the right (hold to swing, slide to aim) with a dash button, and taps to get past the title, pause and end screens.
 
 use bevy::input::touch::Touch;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use emberbound_core::{GameState, PadLayout, RunPhase, Stick, TouchPad};
+use emberbound_core::{AIM_DEAD_ZONE, GameState, PadLayout, RunPhase, Stick, TouchPad};
 
 use super::TouchIntent;
 
@@ -29,7 +29,8 @@ impl Screen {
 pub(super) struct Fingers {
     /// The stick finger and where the stick is centred.
     stick: Option<(u64, Vec2)>,
-    sword: Vec<u64>,
+    /// Sword fingers and where each one's stick is centred; the first aims.
+    sword: Vec<(u64, Vec2)>,
     dash: Option<u64>,
     /// Touches that began on a menu, and on which one.
     taps: Vec<(u64, Screen)>,
@@ -61,7 +62,7 @@ pub(super) fn read_touches(
             fingers.dash = Some(id);
             intent.dash = true;
         } else {
-            fingers.sword.push(id);
+            fingers.sword.push((id, position));
         }
     }
 
@@ -74,7 +75,7 @@ pub(super) fn read_touches(
             intent.tap = Some(touch.position());
         }
         fingers.taps.retain(|&(tap, _)| tap != id);
-        fingers.sword.retain(|&sword| sword != id);
+        fingers.sword.retain(|&(sword, _)| sword != id);
         if fingers.dash == Some(id) {
             fingers.dash = None;
         }
@@ -96,22 +97,79 @@ pub(super) fn read_touches(
 
     intent.confirm = intent.tap.is_some() && screen.0 != GameState::InRun;
     intent.attack = !fingers.sword.is_empty();
+    let aim_stick = fingers.sword.first().and_then(|&(id, origin)| {
+        let touch = touches.get_pressed(id)?;
+        Some(float(touch.position(), origin, layout.stick_radius))
+    });
+    if let Some((origin, finger)) = aim_stick {
+        // Like the movement stick, the sword stick drags along past its rim.
+        fingers.sword[0].1 = origin;
+        intent.aim = sword_aim(finger - origin, layout.stick_radius);
+    }
     fingers.intent = intent;
     pad.set_if_neq(TouchPad {
         stick: stick.map(|(origin, knob, _)| Stick { origin, knob }),
+        aim: aim_stick.map(|(origin, finger)| Stick {
+            origin,
+            knob: origin + (finger - origin).clamp_length_max(layout.stick_radius),
+        }),
         attack_held: intent.attack,
         dash_held: fingers.dash.is_some(),
     });
 }
 
+/// The world direction a sword stick aims, from the finger's offset from
+/// the stick's centre; nothing inside the dead zone. Screen y grows
+/// downwards, world y upwards.
+fn sword_aim(offset: Vec2, radius: f32) -> Option<Vec2> {
+    (offset.length() > radius * AIM_DEAD_ZONE).then(|| Vec2::new(offset.x, -offset.y).normalize())
+}
+
+/// A floating stick's centre after the finger moved: a finger past the rim
+/// drags the centre along, so reversing direction is instant. Returns the
+/// centre and the finger.
+fn float(finger: Vec2, origin: Vec2, radius: f32) -> (Vec2, Vec2) {
+    let offset = finger - origin;
+    let origin = if offset.length() > radius { finger - offset.normalize() * radius } else { origin };
+    (origin, finger)
+}
+
 /// Stick origin (possibly dragged), knob position and the resulting world
 /// movement for a finger. Screen y grows downwards, world y upwards.
 fn steer(touch: &Touch, origin: Vec2, radius: f32) -> (Vec2, Vec2, Vec2) {
-    let finger = touch.position();
-    let offset = finger - origin;
-    let origin = if offset.length() > radius { finger - offset.normalize() * radius } else { origin };
+    let (origin, finger) = float(touch.position(), origin, radius);
     let deflection = ((finger - origin) / radius).clamp_length_max(1.0);
     let movement =
         if deflection.length() < DEAD_ZONE { Vec2::ZERO } else { Vec2::new(deflection.x, -deflection.y) };
     (origin, finger, movement)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const RADIUS: f32 = 50.0;
+
+    #[test]
+    fn a_sword_finger_held_still_does_not_aim() {
+        assert_eq!(sword_aim(Vec2::ZERO, RADIUS), None);
+        assert_eq!(sword_aim(Vec2::new(RADIUS * AIM_DEAD_ZONE * 0.9, 0.0), RADIUS), None);
+    }
+
+    #[test]
+    fn sliding_the_sword_finger_aims_that_way_in_the_world() {
+        assert_eq!(sword_aim(Vec2::new(40.0, 0.0), RADIUS), Some(Vec2::X));
+        // Sliding up the screen aims up in the world.
+        assert_eq!(sword_aim(Vec2::new(0.0, -40.0), RADIUS), Some(Vec2::Y));
+    }
+
+    #[test]
+    fn a_finger_past_the_rim_drags_the_stick_along() {
+        let (origin, _) = float(Vec2::new(100.0, 0.0), Vec2::ZERO, RADIUS);
+        assert_eq!(origin, Vec2::new(100.0 - RADIUS, 0.0));
+        // Inside the rim the centre stays put.
+        assert_eq!(float(Vec2::new(10.0, 5.0), Vec2::ZERO, RADIUS).0, Vec2::ZERO);
+        // Reversing after a drag aims the other way well before the landing point.
+        assert_eq!(sword_aim(Vec2::new(30.0, 0.0) - origin, RADIUS), Some(Vec2::NEG_X));
+    }
 }
