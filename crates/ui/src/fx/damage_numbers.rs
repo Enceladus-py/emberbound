@@ -12,7 +12,8 @@ const LIFETIME: f32 = 0.6;
 const RISE: f32 = 14.0;
 /// Rasterised large and scaled down: world units are art pixels, so text
 /// drawn at its natural size would be huge, and a tiny font would be blurry.
-const FONT_SIZE: f32 = 48.0;
+/// At [`SCALE`] one font pixel is one art pixel.
+const FONT_SIZE: f32 = 40.0;
 const SCALE: f32 = 0.2;
 const CRITICAL_SCALE: f32 = 0.3;
 /// Horizontal scatter so stacked hits stay legible.
@@ -42,9 +43,9 @@ fn spawn_numbers(mut commands: Commands, mut hits: MessageReader<DamageApplied>,
             DespawnOnExit(GameState::InRun),
             DamageNumber { age: 0.0, origin, scale },
             Text2d::new(text),
-            TextFont { font_size: FontSize::Px(FONT_SIZE), ..default() },
+            theme::text_font(FONT_SIZE),
             TextColor(color),
-            Text2dShadow { offset: Vec2::new(4.0, -4.0), color: Color::BLACK.with_alpha(0.85) },
+            Text2dShadow { offset: Vec2::new(5.0, -5.0), color: Color::BLACK.with_alpha(0.85) },
             Transform::from_translation(origin.extend(layer::FX + 1.0)).with_scale(Vec3::splat(scale)),
         ));
     }

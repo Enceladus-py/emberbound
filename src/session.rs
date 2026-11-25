@@ -3,6 +3,7 @@
 //! or won. It orchestrates the domain; it holds no rules of its own.
 
 use bevy::prelude::*;
+use bevy::window::{WindowFocused, WindowOccluded};
 use emberbound_core::{
     ActorDied, ActorKind, Armor, BoonChosen, BoonOffer, GameRng, GameSet, GameState, Health, HeroState,
     LeveledUp, Player, PlayerIntent, RunPhase, RunSetup, RunStats, Terrain, XpCollected,
@@ -25,7 +26,11 @@ impl Plugin for SessionPlugin {
             .add_systems(OnEnter(GameState::InRun), reset_run.in_set(RunSetup::Reset))
             .add_systems(Update, (track_run, grant_levels, offer_next_boon).chain().in_set(GameSet::Resolve))
             .add_systems(Update, apply_chosen_boon.run_if(in_state(RunPhase::ChoosingBoon)))
-            .add_systems(Update, finish_run.run_if(in_state(GameState::InRun)))
+            .add_systems(Update, toggle_pause.run_if(in_state(GameState::InRun)))
+            .add_systems(
+                Update,
+                finish_run.run_if(in_state(GameState::InRun)).run_if(not(in_state(RunPhase::Paused))),
+            )
             .add_systems(Update, start_run.run_if(not(in_state(GameState::InRun))));
     }
 }
@@ -146,6 +151,27 @@ fn apply_chosen_boon(
     }
 }
 
+/// Esc / P pause and resume a fight; Enter or a tap also resume. Losing
+/// window focus (another tab, app or notification) pauses too, so the hero
+/// is never left to die unattended. Boon choice is never paused.
+fn toggle_pause(
+    intent: Res<PlayerIntent>,
+    phase: Res<State<RunPhase>>,
+    mut focus: MessageReader<WindowFocused>,
+    mut occlusion: MessageReader<WindowOccluded>,
+    mut next: ResMut<NextState<RunPhase>>,
+) {
+    let lost_focus = focus.read().any(|event| !event.focused);
+    let hidden = occlusion.read().any(|event| event.occluded);
+    match phase.get() {
+        RunPhase::Fighting if intent.pause || lost_focus || hidden => next.set(RunPhase::Paused),
+        RunPhase::Paused if intent.pause || intent.confirm || intent.tap.is_some() => {
+            next.set(RunPhase::Fighting)
+        }
+        _ => {}
+    }
+}
+
 fn finish_run(time: Res<Time>, mut aftermath: ResMut<Aftermath>, mut next: ResMut<NextState<GameState>>) {
     if let Some((timer, outcome)) = aftermath.0.as_mut()
         && timer.tick(time.delta()).is_finished()
@@ -172,6 +198,8 @@ mod tests {
             // The sprite library uploads into these; no renderer is needed.
             .init_resource::<Assets<Image>>()
             .init_resource::<Assets<TextureAtlasLayout>>()
+            .add_message::<WindowFocused>()
+            .add_message::<WindowOccluded>()
             .add_plugins((CorePlugin, SessionPlugin));
         app.world_mut().resource_mut::<PlayerIntent>().confirm = true;
         app.update(); // start_run asks for the run...
@@ -352,5 +380,85 @@ mod tests {
         assert_eq!((stats.kills, stats.dragons_slain), (0, 0));
         assert_eq!(app.world().resource::<HeroState>().progress.level(), Progress::default().level());
         assert_eq!(phase(&app), RunPhase::Fighting);
+    }
+
+    fn press(app: &mut App, edit: impl FnOnce(&mut PlayerIntent)) {
+        edit(&mut app.world_mut().resource_mut::<PlayerIntent>());
+        app.update();
+        *app.world_mut().resource_mut::<PlayerIntent>() = PlayerIntent::default();
+        app.update();
+    }
+
+    #[test]
+    fn pause_toggles_and_freezes_the_run() {
+        let mut app = app();
+        press(&mut app, |intent| intent.pause = true);
+        assert_eq!(phase(&app), RunPhase::Paused);
+
+        let elapsed = app.world().resource::<RunStats>().elapsed;
+        app.world_mut().write_message(XpCollected { amount: xp_for_levels(1).0 });
+        app.update();
+        app.update();
+        assert_eq!(app.world().resource::<RunStats>().elapsed, elapsed, "the clock stops");
+        assert_eq!(pending(&app), 0, "nothing is settled while paused");
+
+        press(&mut app, |intent| intent.pause = true);
+        assert_eq!(phase(&app), RunPhase::Fighting);
+    }
+
+    #[test]
+    fn enter_or_a_tap_resumes() {
+        let mut app = app();
+        press(&mut app, |intent| intent.pause = true);
+        press(&mut app, |intent| intent.confirm = true);
+        assert_eq!(phase(&app), RunPhase::Fighting);
+
+        press(&mut app, |intent| intent.pause = true);
+        press(&mut app, |intent| intent.tap = Some(Vec2::new(10.0, 10.0)));
+        assert_eq!(phase(&app), RunPhase::Fighting);
+    }
+
+    #[test]
+    fn losing_focus_pauses_but_regaining_it_does_not_resume() {
+        let mut app = app();
+        app.world_mut().write_message(WindowFocused { window: Entity::PLACEHOLDER, focused: false });
+        app.update();
+        app.update();
+        assert_eq!(phase(&app), RunPhase::Paused);
+
+        app.world_mut().write_message(WindowFocused { window: Entity::PLACEHOLDER, focused: true });
+        app.update();
+        app.update();
+        assert_eq!(phase(&app), RunPhase::Paused, "the player resumes when ready");
+    }
+
+    #[test]
+    fn a_boon_choice_cannot_be_paused() {
+        let mut app = app();
+        set_phase(&mut app, RunPhase::ChoosingBoon);
+        press(&mut app, |intent| intent.pause = true);
+        app.world_mut().write_message(WindowFocused { window: Entity::PLACEHOLDER, focused: false });
+        app.update();
+        app.update();
+        assert_eq!(phase(&app), RunPhase::ChoosingBoon);
+    }
+
+    #[test]
+    fn a_decided_run_waits_while_paused() {
+        let mut app = app();
+        die(&mut app, ActorKind::Hero);
+        app.update();
+        press(&mut app, |intent| intent.pause = true);
+        app.world_mut()
+            .resource_mut::<Aftermath>()
+            .0
+            .as_mut()
+            .unwrap()
+            .0
+            .set_elapsed(std::time::Duration::from_secs_f32(AFTERMATH_SECONDS));
+        app.update();
+        app.update();
+        assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::InRun);
+        assert_eq!(phase(&app), RunPhase::Paused);
     }
 }

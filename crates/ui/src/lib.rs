@@ -1,7 +1,7 @@
 //! # Emberbound UI
 //!
-//! Everything the player reads rather than fights: the title, boon and end
-//! screens, the HUD, announcement banners and cosmetic world-space feedback
+//! Everything the player reads rather than fights: the title, boon, pause
+//! and end screens, the HUD, announcement banners and cosmetic world-space feedback
 //! (damage numbers, hit flashes, particles). One module per concern; they
 //! share only [`theme`] and [`widgets`].
 //!
@@ -14,7 +14,9 @@ mod boons;
 mod end_screens;
 mod fx;
 mod hud;
+mod minimap;
 mod pad;
+mod pause;
 mod theme;
 mod title;
 mod widgets;
@@ -30,8 +32,10 @@ impl Plugin for UiPlugin {
             widgets::plugin,
             title::plugin,
             hud::plugin,
+            minimap::plugin,
             pad::plugin,
             boons::plugin,
+            pause::plugin,
             boon_strip::plugin,
             end_screens::plugin,
             announce::plugin,

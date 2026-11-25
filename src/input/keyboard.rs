@@ -18,6 +18,8 @@ pub(super) fn read(keys: &ButtonInput<KeyCode>, mouse: &ButtonInput<MouseButton>
         attack: keys.any_pressed([KeyCode::Space, KeyCode::KeyJ]) || mouse.pressed(MouseButton::Left),
         dash: keys.any_just_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight, KeyCode::KeyK]),
         confirm: keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space]),
+        pause: keys.any_just_pressed([KeyCode::Escape, KeyCode::KeyP]),
+        minimap: keys.just_pressed(KeyCode::KeyM),
         choice: [
             [KeyCode::Digit1, KeyCode::Numpad1],
             [KeyCode::Digit2, KeyCode::Numpad2],

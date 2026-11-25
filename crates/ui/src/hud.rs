@@ -1,12 +1,14 @@
 //! In-run HUD: hero vitals with the boons taken beneath them (top-left),
-//! run facts (top-right), the dragon lure / boss bar (top-centre), a fading
-//! controls hint (bottom-centre) and the low-health vignette.
+//! run facts with the minimap under them (top-right), the dragon lure /
+//! boss bar (top-centre), a fading controls hint (bottom-centre) and the
+//! low-health vignette.
 
 use bevy::prelude::*;
 use emberbound_core::{DashCooldown, Dragon, GameState, Health, HeroState, Player, RunSetup, RunStats};
 use emberbound_domain::bestiary::{DragonKind, DragonPhase};
 
 use crate::boon_strip::BoonStrip;
+use crate::minimap::MinimapSlot;
 use crate::theme::{self, font};
 use crate::widgets::{Bar, bar, clock, device_label, label, panel, set_text, shadowed_label, text_shadow};
 
@@ -15,6 +17,9 @@ const HINT_VISIBLE_SECONDS: f32 = 12.0;
 const HINT_FADE_SECONDS: f32 = 1.5;
 /// Health fraction below which the screen edge pulses red.
 const LOW_HEALTH: f32 = 0.3;
+/// Width of the vitals and run facts panels: room for a full health bar
+/// and "HP 100/100" side by side.
+const HUD_PANEL_WIDTH: f32 = 280.0;
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::InRun), spawn_hud.in_set(RunSetup::Spawn)).add_systems(
@@ -80,9 +85,12 @@ fn spawn_hud(mut commands: Commands) {
             ..default()
         },
         children![
-            (column(8.0), children![vitals(), (BoonStrip, boon_strip_node(250.0))]),
+            (column(8.0), children![vitals(), (BoonStrip, boon_strip_node(HUD_PANEL_WIDTH))]),
             dragon_bars(),
-            run_facts(),
+            (
+                Node { align_items: AlignItems::FlexEnd, ..column(8.0) },
+                children![run_facts(), (MinimapSlot, Node::default())]
+            ),
             hint(),
             vignette(18.0, 0.5),
             vignette(42.0, 0.22)
@@ -105,7 +113,7 @@ fn boon_strip_node(width: f32) -> Node {
 
 fn vitals() -> impl Bundle {
     (
-        panel(Node { padding: px(10).all(), width: px(250), ..column(7.0) }),
+        panel(Node { padding: px(10).all(), width: px(HUD_PANEL_WIDTH), ..column(7.0) }),
         children![
             (
                 row(8.0),
@@ -136,7 +144,7 @@ fn run_facts() -> impl Bundle {
     (
         panel(Node {
             padding: px(10).all(),
-            width: px(250),
+            width: px(HUD_PANEL_WIDTH),
             align_items: AlignItems::FlexEnd,
             ..column(4.0)
         }),
@@ -190,7 +198,7 @@ fn hint() -> impl Bundle {
         },
         children![(
             device_label(
-                "MOVE: WASD / ARROWS  -  SWORD: SPACE / J / CLICK  -  DASH: SHIFT / K",
+                "MOVE: WASD / ARROWS  -  SWORD: SPACE / J / CLICK  -  DASH: SHIFT / K  -  PAUSE: ESC",
                 "MOVE: LEFT THUMB  -  SWORD: HOLD RIGHT SIDE  -  DASH: DASH BUTTON",
                 font::SMALL,
                 theme::PARCHMENT,

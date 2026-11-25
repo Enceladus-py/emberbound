@@ -44,6 +44,8 @@ fn combine(
         attack: keyboard.attack || touch.attack,
         dash: keyboard.dash || touch.dash,
         confirm: keyboard.confirm || touch.confirm,
+        pause: keyboard.pause,
+        minimap: keyboard.minimap,
         choice: keyboard.choice,
         tap: touch.tap,
     };

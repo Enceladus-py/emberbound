@@ -1,11 +1,15 @@
-//! The look of the game: palette, font sizes and UI scaling.
+//! The look of the game: palette, the pixel font and its sizes, and UI
+//! scaling.
 //!
 //! All UI is laid out in "design pixels" for a 720 pixel tall window;
 //! [`UiScale`] stretches that to whatever the window (or browser canvas)
 //! actually is, so text stays readable from 800x450 up to 4K.
 
+use bevy::asset::uuid_handle;
 use bevy::prelude::*;
+use bevy::text::FontSmoothing;
 use bevy::window::PrimaryWindow;
+use emberbound_pixelart::pixel_font_ttf;
 
 pub const NIGHT: Color = Color::srgb_u8(0x12, 0x10, 0x1a);
 pub const PANEL: Color = Color::srgb_u8(0x1f, 0x1b, 0x2e);
@@ -19,13 +23,29 @@ pub const XP: Color = Color::srgb_u8(0xf7, 0xd3, 0x54);
 pub const FROST: Color = Color::srgb_u8(0x7f, 0xd1, 0xe8);
 pub const MOSS: Color = Color::srgb_u8(0x6f, 0xbf, 0x73);
 
-/// Font sizes in design pixels.
+/// Font sizes in design pixels. Each is a whole multiple of the pixel
+/// font's em ([`emberbound_pixelart::EM_PIXELS`] font pixels), so every font
+/// pixel is a whole, square number of design pixels.
 pub mod font {
     pub const LOGO: f32 = 112.0;
     pub const HEADLINE: f32 = 64.0;
-    pub const TITLE: f32 = 34.0;
-    pub const BODY: f32 = 22.0;
-    pub const SMALL: f32 = 17.0;
+    pub const TITLE: f32 = 32.0;
+    pub const BODY: f32 = 24.0;
+    pub const SMALL: f32 = 16.0;
+}
+
+/// The game's pixel font (see `emberbound_pixelart::pixel_font_ttf`),
+/// generated at start-up. Text gets it through [`text_font`].
+pub const PIXEL_FONT: Handle<Font> = uuid_handle!("6a0d3c1e-5b7f-4f2e-9a43-8e1d2c7b5f90");
+
+/// The pixel font at `size`, drawn without smoothing so its edges stay sharp.
+pub fn text_font(size: f32) -> TextFont {
+    TextFont {
+        font: PIXEL_FONT.into(),
+        font_size: FontSize::Px(size),
+        font_smoothing: FontSmoothing::None,
+        ..default()
+    }
 }
 
 /// Stacking order of the full-screen UI layers.
@@ -43,7 +63,11 @@ const DESIGN_HEIGHT: f32 = 720.0;
 const DESIGN_MIN_WIDTH: f32 = 960.0;
 
 pub(crate) fn plugin(app: &mut App) {
-    app.add_systems(PreUpdate, fit_ui_to_window);
+    app.add_systems(Startup, load_pixel_font).add_systems(PreUpdate, fit_ui_to_window);
+}
+
+fn load_pixel_font(mut fonts: ResMut<Assets<Font>>) {
+    fonts.insert(&PIXEL_FONT, Font::from_bytes(pixel_font_ttf())).expect("the font handle is a constant");
 }
 
 fn fit_ui_to_window(window: Single<&Window, With<PrimaryWindow>>, mut scale: ResMut<UiScale>) {
