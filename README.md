@@ -20,6 +20,7 @@ image files at all.
 | Dash (brief invulnerability) | `Shift` / `K` |
 | Pick a boon | `1` `2` `3` |
 | Pause / resume | `Esc` / `P` (`Enter` also resumes) |
+| Show / hide the minimap | `M` |
 | Start / restart | `Enter` |
 
 ### On a phone or tablet

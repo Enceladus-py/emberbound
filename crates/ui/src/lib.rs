@@ -13,6 +13,7 @@ mod boons;
 mod end_screens;
 mod fx;
 mod hud;
+mod minimap;
 mod pad;
 mod pause;
 mod theme;
@@ -30,6 +31,7 @@ impl Plugin for UiPlugin {
             widgets::plugin,
             title::plugin,
             hud::plugin,
+            minimap::plugin,
             pad::plugin,
             boons::plugin,
             pause::plugin,
