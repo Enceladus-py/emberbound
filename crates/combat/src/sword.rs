@@ -115,6 +115,9 @@ pub fn swing(
 
 #[cfg(test)]
 mod tests {
+    use bevy::state::app::StatesPlugin;
+    use emberbound_core::CorePlugin;
+
     use super::*;
 
     const REACH: f32 = 26.0;
@@ -163,5 +166,52 @@ mod tests {
     fn a_target_out_of_reach_is_missed() {
         assert!(!in_arc(at(0.0, REACH + SMALL + 1.0), Vec2::X, REACH, SMALL));
         assert!(in_arc(at(0.0, REACH + SMALL - 1.0), Vec2::X, REACH, SMALL));
+    }
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin))
+            // The sprite library uploads into these; no renderer is needed.
+            .init_resource::<Assets<Image>>()
+            .init_resource::<Assets<TextureAtlasLayout>>()
+            .add_plugins(CorePlugin)
+            .init_resource::<SwingCooldown>()
+            .add_systems(Update, swing);
+        app.world_mut().resource_mut::<HeroState>().stats.attack_reach = REACH;
+        app.world_mut().resource_mut::<PlayerIntent>().attack = true;
+        app.world_mut().spawn((Player, Transform::default(), Facing(Vec2::X), Health::full(100.0)));
+        app
+    }
+
+    fn spawn_target(app: &mut App, team: Team, offset: Vec2, radius: f32) -> Entity {
+        let body = Body { radius, walks: true };
+        let transform = Transform::from_translation(offset.extend(0.0));
+        app.world_mut().spawn((team, body, transform, Health::full(50.0))).id()
+    }
+
+    fn struck(app: &mut App) -> Vec<Entity> {
+        let requests = app.world_mut().resource_mut::<Messages<DamageRequest>>().drain().collect::<Vec<_>>();
+        requests.into_iter().map(|request| request.target).collect()
+    }
+
+    #[test]
+    fn a_swing_hits_only_the_horde() {
+        let mut app = app();
+        let monster = spawn_target(&mut app, Team::Horde, at(0.0, 20.0), SMALL);
+        spawn_target(&mut app, Team::Hero, at(10.0, 20.0), SMALL);
+        app.update();
+
+        assert_eq!(struck(&mut app), vec![monster]);
+    }
+
+    #[test]
+    fn a_swing_hits_a_dragon_whose_flank_overlaps_the_arc() {
+        let mut app = app();
+        let dragon = spawn_target(&mut app, Team::Horde, at(100.0, 35.0), DRAGON);
+        spawn_target(&mut app, Team::Horde, at(180.0, 20.0), SMALL);
+        spawn_target(&mut app, Team::Horde, at(0.0, REACH + SMALL + 1.0), SMALL);
+        app.update();
+
+        assert_eq!(struck(&mut app), vec![dragon]);
     }
 }
