@@ -21,6 +21,9 @@ pub enum RunPhase {
     Fighting,
     /// Gameplay is frozen while the player picks a boon.
     ChoosingBoon,
+    /// Gameplay is frozen until the player resumes. Only entered from
+    /// [`RunPhase::Fighting`].
+    Paused,
 }
 
 /// Ordered phases of a gameplay frame in `Update`.
