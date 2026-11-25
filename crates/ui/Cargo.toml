@@ -8,6 +8,7 @@ license.workspace = true
 bevy.workspace = true
 emberbound_domain.workspace = true
 emberbound_core.workspace = true
+emberbound_pixelart.workspace = true
 
 [lints]
 workspace = true
