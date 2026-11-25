@@ -1,4 +1,5 @@
-//! In-run HUD: hero vitals (top-left), run facts (top-right), the dragon
+//! In-run HUD: hero vitals (top-left), run facts with the minimap under
+//! them (top-right), the dragon
 //! lure / boss bar (top-centre), a fading controls hint (bottom-centre) and
 //! the low-health vignette.
 
@@ -6,6 +7,7 @@ use bevy::prelude::*;
 use emberbound_core::{DashCooldown, Dragon, GameState, Health, HeroState, Player, RunSetup, RunStats};
 use emberbound_domain::bestiary::{DragonKind, DragonPhase};
 
+use crate::minimap::MinimapSlot;
 use crate::theme::{self, font};
 use crate::widgets::{Bar, bar, clock, device_label, label, panel, set_text, shadowed_label, text_shadow};
 
@@ -81,7 +83,17 @@ fn spawn_hud(mut commands: Commands) {
             column_gap: px(12),
             ..default()
         },
-        children![vitals(), dragon_bars(), run_facts(), hint(), vignette(18.0, 0.5), vignette(42.0, 0.22)],
+        children![
+            vitals(),
+            dragon_bars(),
+            (
+                Node { align_items: AlignItems::FlexEnd, ..column(8.0) },
+                children![run_facts(), (MinimapSlot, Node::default())]
+            ),
+            hint(),
+            vignette(18.0, 0.5),
+            vignette(42.0, 0.22)
+        ],
     ));
 }
 

@@ -19,6 +19,8 @@ pub struct PlayerIntent {
     pub confirm: bool,
     /// Pause / resume was pressed this frame.
     pub pause: bool,
+    /// Show / hide the minimap was pressed this frame.
+    pub minimap: bool,
     /// A numbered choice (0-based) was pressed this frame.
     pub choice: Option<usize>,
     /// A finger tapped here this frame, in logical window pixels from the
