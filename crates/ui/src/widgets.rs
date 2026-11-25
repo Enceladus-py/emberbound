@@ -3,6 +3,7 @@
 
 use bevy::prelude::*;
 use emberbound_core::{InputMode, SpriteId, SpriteLibrary};
+use emberbound_pixelart::EM_PIXELS;
 
 use crate::theme;
 
@@ -10,14 +11,9 @@ pub(crate) fn plugin(app: &mut App) {
     app.add_systems(Update, (animate_bars, pulse_text, animate_sprite_images, speak_to_device));
 }
 
-/// A line of text in the default font.
+/// A line of text in the pixel font.
 pub fn label(text: impl Into<String>, size: f32, color: Color) -> impl Bundle {
-    (
-        Text::new(text),
-        TextFont { font_size: FontSize::Px(size), ..default() },
-        TextColor(color),
-        Pickable::IGNORE,
-    )
+    (Text::new(text), theme::text_font(size), TextColor(color), Pickable::IGNORE)
 }
 
 /// A [`label`] with a hard drop shadow, for text drawn over the world.
@@ -25,9 +21,9 @@ pub fn shadowed_label(text: impl Into<String>, size: f32, color: Color) -> impl 
     (label(text, size, color), text_shadow(size))
 }
 
-/// A chunky pixel-style drop shadow proportional to the font size.
+/// A chunky drop shadow one font pixel down and right.
 pub fn text_shadow(size: f32) -> TextShadow {
-    TextShadow { offset: Vec2::splat((size / 14.0).max(1.5)), color: Color::BLACK.with_alpha(0.8) }
+    TextShadow { offset: Vec2::splat(size / EM_PIXELS as f32), color: Color::BLACK.with_alpha(0.8) }
 }
 
 /// A [`label`] whose lines are centred and may wrap.

@@ -28,7 +28,7 @@ pub(crate) fn plugin(app: &mut App) {
         .add_observer(leave_card);
 }
 
-const CARD_WIDTH: f32 = 236.0;
+const CARD_WIDTH: f32 = 260.0;
 const CARD_PADDING: f32 = 14.0;
 const ICON_SCALE: f32 = 3.0;
 /// Seconds between the entrances of neighbouring cards, and of one entrance.
@@ -175,7 +175,7 @@ fn card(index: usize, boon: Boon, hero: &HeroState, library: &SpriteLibrary) -> 
         Children::spawn((
             Spawn(ribbon(rarity, color)),
             Spawn(medallion(boon, color, library)),
-            Spawn(centered_label(boon.title().to_uppercase(), font::BODY * 1.1, theme::PARCHMENT)),
+            Spawn(centered_label(boon.title().to_uppercase(), font::BODY, theme::PARCHMENT)),
             Spawn(aspect_tag(boon)),
             Spawn(centered_label(
                 boon.description().to_uppercase(),
@@ -243,7 +243,7 @@ fn aspect_tag(boon: Boon) -> impl Bundle {
             ..default()
         },
         BorderColor::all(theme::PANEL_BORDER),
-        children![label(boon.aspect().name().to_uppercase(), font::SMALL * 0.85, theme::EMBER)],
+        children![label(boon.aspect().name().to_uppercase(), font::SMALL, theme::EMBER)],
     )
 }
 
@@ -265,7 +265,7 @@ fn footer(index: usize, stacks: String) -> impl Bundle {
             ..default()
         },
         children![
-            label(stacks, font::SMALL * 0.85, theme::MUTED),
+            label(stacks, font::SMALL, theme::MUTED),
             (label(key, font::BODY, theme::EMBER), DeviceText { keyboard: key, touch: "" }),
         ],
     )

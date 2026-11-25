@@ -2531,6 +2531,7 @@ dependencies = [
  "bevy",
  "emberbound_core",
  "emberbound_domain",
+ "emberbound_pixelart",
 ]
 
 [[package]]

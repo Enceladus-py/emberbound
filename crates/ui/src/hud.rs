@@ -16,6 +16,9 @@ const HINT_VISIBLE_SECONDS: f32 = 12.0;
 const HINT_FADE_SECONDS: f32 = 1.5;
 /// Health fraction below which the screen edge pulses red.
 const LOW_HEALTH: f32 = 0.3;
+/// Width of the vitals and run facts panels: room for a full health bar
+/// and "HP 100/100" side by side.
+const HUD_PANEL_WIDTH: f32 = 280.0;
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::InRun), spawn_hud.in_set(RunSetup::Spawn)).add_systems(
@@ -104,7 +107,7 @@ fn column(gap: f32) -> Node {
 
 fn vitals() -> impl Bundle {
     (
-        panel(Node { padding: px(10).all(), width: px(250), ..column(7.0) }),
+        panel(Node { padding: px(10).all(), width: px(HUD_PANEL_WIDTH), ..column(7.0) }),
         children![
             (
                 row(8.0),
@@ -135,7 +138,7 @@ fn run_facts() -> impl Bundle {
     (
         panel(Node {
             padding: px(10).all(),
-            width: px(250),
+            width: px(HUD_PANEL_WIDTH),
             align_items: AlignItems::FlexEnd,
             ..column(4.0)
         }),
