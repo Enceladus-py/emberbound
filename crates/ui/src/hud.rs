@@ -1,12 +1,13 @@
-//! In-run HUD: hero vitals (top-left), run facts with the minimap under
-//! them (top-right), the dragon
-//! lure / boss bar (top-centre), a fading controls hint (bottom-centre) and
-//! the low-health vignette.
+//! In-run HUD: hero vitals with the boons taken beneath them (top-left),
+//! run facts with the minimap under them (top-right), the dragon lure /
+//! boss bar (top-centre), a fading controls hint (bottom-centre) and the
+//! low-health vignette.
 
 use bevy::prelude::*;
 use emberbound_core::{DashCooldown, Dragon, GameState, Health, HeroState, Player, RunSetup, RunStats};
 use emberbound_domain::bestiary::{DragonKind, DragonPhase};
 
+use crate::boon_strip::BoonStrip;
 use crate::minimap::MinimapSlot;
 use crate::theme::{self, font};
 use crate::widgets::{Bar, bar, clock, device_label, label, panel, set_text, shadowed_label, text_shadow};
@@ -84,7 +85,7 @@ fn spawn_hud(mut commands: Commands) {
             ..default()
         },
         children![
-            vitals(),
+            (column(8.0), children![vitals(), (BoonStrip, boon_strip_node(HUD_PANEL_WIDTH))]),
             dragon_bars(),
             (
                 Node { align_items: AlignItems::FlexEnd, ..column(8.0) },
@@ -103,6 +104,11 @@ fn row(gap: f32) -> Node {
 
 fn column(gap: f32) -> Node {
     Node { flex_direction: FlexDirection::Column, row_gap: px(gap), ..default() }
+}
+
+/// The row the [`BoonStrip`] fills, wrapping under the vitals panel.
+fn boon_strip_node(width: f32) -> Node {
+    Node { width: px(width), flex_wrap: FlexWrap::Wrap, column_gap: px(4), row_gap: px(4), ..default() }
 }
 
 fn vitals() -> impl Bundle {

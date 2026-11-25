@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use emberbound_core::{GameState, HeroState, RunStats};
 use emberbound_domain::bestiary::DragonKind;
 
+use crate::boon_strip::{BoonStrip, ICON_SIZE};
 use crate::theme::{self, font};
 use crate::widgets::{Pulse, centered_label, clock, device_label, label, panel, screen_root, text_shadow};
 
@@ -55,11 +56,27 @@ fn end_screen(
             ),
             centered_label(verdict, font::BODY, theme::MUTED),
             summary(stats, hero),
+            taken_boons(),
             (
                 device_label("PRESS ENTER TO PLAY AGAIN", "TAP TO PLAY AGAIN", font::TITLE, theme::PARCHMENT),
                 Pulse
             ),
         ],
+    )
+}
+
+/// The boons of the finished run, filled in by the strip.
+fn taken_boons() -> impl Bundle {
+    (
+        BoonStrip,
+        Node {
+            max_width: px(12.0 * (ICON_SIZE + 6.0)),
+            flex_wrap: FlexWrap::Wrap,
+            justify_content: JustifyContent::Center,
+            column_gap: px(6),
+            row_gap: px(6),
+            ..default()
+        },
     )
 }
 

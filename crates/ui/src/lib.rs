@@ -9,6 +9,7 @@
 //! and observes the game through core's components, resources and messages.
 
 mod announce;
+mod boon_strip;
 mod boons;
 mod end_screens;
 mod fx;
@@ -35,6 +36,7 @@ impl Plugin for UiPlugin {
             pad::plugin,
             boons::plugin,
             pause::plugin,
+            boon_strip::plugin,
             end_screens::plugin,
             announce::plugin,
             fx::plugin,
