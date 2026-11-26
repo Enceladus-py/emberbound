@@ -119,7 +119,7 @@ impl Invulnerable {
 }
 
 /// Marker: keep `Transform.translation.z` sorted by y so lower things draw
-/// in front. `world` sets `z = layer::ACTORS - y * 0.001` every frame.
+/// in front. `world` sets `z` from `y`, measured from a depth origin near the hero.
 #[derive(Component, Debug, Default)]
 pub struct YSort;
 

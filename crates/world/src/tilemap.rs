@@ -1,18 +1,27 @@
-//! The valley: the ground baked into a few large chunk images, water and
-//! obstacles as sprites on top.
+//! The ground: baked into small chunk images, with water and obstacles as
+//! sprites on top, streamed in and out around the camera.
 //!
-//! A 72x72 valley would otherwise be more than five thousand ground
-//! sprites, which phones feel every frame. Ground never changes during a
-//! run, so it is drawn once into chunks on the CPU instead.
+//! Drawing every tile as a sprite would be thousands of sprites, which
+//! phones feel every frame. Ground never changes during a run, so each
+//! chunk is drawn once on the CPU when it comes into view and dropped
+//! (with its water and obstacles) once it is well out of view. The chunks
+//! of terrain this reads are kept loaded around the hero by
+//! [`keep_terrain_loaded`].
+
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::sprite::Anchor;
-use emberbound_core::{GameState, RunSetup, SpriteId, SpriteLibrary, Terrain, layer};
-use emberbound_domain::world::{TILE_SIZE, Tile, WorldMap};
+use emberbound_core::{
+    GameSet, GameState, MainCamera, Player, RunSetup, SpriteId, SpriteLibrary, Terrain, VIEW_HEIGHT, layer,
+};
+use emberbound_domain::world::{TILE_SIZE, Tile, TileSource, WorldMap};
 
-use crate::ysort;
+use crate::camera;
+use crate::ysort::{DepthOrigin, StaticDepth};
 
 /// Frames per second of the water ripple.
 const WATER_FPS: f32 = 2.5;
@@ -20,6 +29,15 @@ const WATER_FPS: f32 = 2.5;
 const CHUNK_TILES: i32 = 8;
 /// Water ripples just above the baked ground.
 const WATER_Z: f32 = layer::GROUND + 0.1;
+/// Chunks drawn beyond the edge of the view on every side, so walking
+/// never reveals a gap.
+const DRAW_MARGIN: i32 = 1;
+/// Chunks are dropped only this far beyond the view, so walking back and
+/// forth over a chunk border does not bake the same chunk again and again.
+const KEEP_MARGIN: i32 = 2;
+/// Half the widest view the camera is assumed to show before it has
+/// worked out its real area (an ultra-wide 2.4:1 window).
+const FALLBACK_HALF_VIEW: Vec2 = Vec2::new(VIEW_HEIGHT * 1.2, VIEW_HEIGHT * 0.5);
 
 /// The ground sprite under a tile. Obstacles stand on grass.
 fn ground_sprite(tile: Tile) -> SpriteId {
@@ -56,70 +74,158 @@ fn tile_hash(x: i32, y: i32, salt: u32) -> usize {
     h as usize
 }
 
-/// Builds the ground chunks, water and obstacles of the fresh [`Terrain`].
-fn spawn_tile_map(
+/// The chunks drawn right now, with the entities that make up each one.
+#[derive(Resource, Debug, Default)]
+struct ShownGround(HashMap<(i32, i32), Vec<Entity>>);
+
+/// Loads the terrain around the hero before anything reads it this frame.
+fn keep_terrain_loaded(hero: Query<&Transform, With<Player>>, mut terrain: ResMut<Terrain>) {
+    let Ok(hero) = hero.single() else { return };
+    let position = hero.translation.truncate();
+    // Checked through `Deref` first so the terrain is only marked changed
+    // when the hero actually reaches new ground.
+    if !terrain.is_loaded_around(position) {
+        terrain.load_around(position);
+    }
+}
+
+/// The chunks (in [`CHUNK_TILES`] units) overlapping a world rectangle
+/// grown by `margin` chunks on every side.
+fn chunks_over(area: Rect, margin: i32) -> (IVec2, IVec2) {
+    let chunk = CHUNK_TILES as f32 * TILE_SIZE;
+    let min = (area.min / chunk).floor().as_ivec2() - IVec2::splat(margin);
+    let max = (area.max / chunk).floor().as_ivec2() + IVec2::splat(margin);
+    (min, max)
+}
+
+/// The world area the camera shows.
+fn view_area(camera: Option<(&Transform, &Projection)>, fallback_centre: Vec2) -> Rect {
+    let Some((transform, projection)) = camera else {
+        return Rect::from_center_half_size(fallback_centre, FALLBACK_HALF_VIEW);
+    };
+    let centre = transform.translation.truncate();
+    match projection {
+        Projection::Orthographic(ortho) if ortho.area.width() > 0.0 => {
+            Rect::from_corners(centre + ortho.area.min, centre + ortho.area.max)
+        }
+        _ => Rect::from_center_half_size(centre, FALLBACK_HALF_VIEW),
+    }
+}
+
+/// Bakes the chunks coming into view and drops those well out of it.
+fn stream_ground(
     mut commands: Commands,
     terrain: Res<Terrain>,
     library: Res<SpriteLibrary>,
+    depth: Res<DepthOrigin>,
     mut images: ResMut<Assets<Image>>,
+    mut shown: ResMut<ShownGround>,
+    camera: Query<(&Transform, &Projection), With<MainCamera>>,
 ) {
-    let map = &terrain.0;
-    let scope = DespawnOnExit(GameState::InRun);
-    let (width, height) = (map.width() as i32, map.height() as i32);
+    let tiles = terrain.tiles();
+    let view = view_area(camera.single().ok(), Vec2::from(tiles.spawn_point()));
 
-    for chunk_y in (0..height).step_by(CHUNK_TILES as usize) {
-        for chunk_x in (0..width).step_by(CHUNK_TILES as usize) {
-            let image = images.add(bake_chunk(map, &library, chunk_x, chunk_y));
-            commands.spawn((
-                Sprite::from_image(image),
-                Anchor::BOTTOM_LEFT,
-                Transform::from_xyz(chunk_x as f32 * TILE_SIZE, chunk_y as f32 * TILE_SIZE, layer::GROUND),
-                scope.clone(),
-            ));
-        }
-    }
-
-    for y in 0..height {
-        for x in 0..width {
-            let tile = map.tile(x, y);
-            let (cx, cy) = WorldMap::tile_center(x, y);
-            if tile == Tile::Water {
-                // Water frames are an animation; every tile ripples in step.
-                commands.spawn((
-                    library.animated(SpriteId::TileWater, WATER_FPS),
-                    Transform::from_xyz(cx, cy, WATER_Z),
-                    scope.clone(),
-                ));
+    let (keep_min, keep_max) = chunks_over(view, KEEP_MARGIN);
+    shown.0.retain(|&(x, y), entities| {
+        let keep = (keep_min.x..=keep_max.x).contains(&x) && (keep_min.y..=keep_max.y).contains(&y);
+        if !keep {
+            for entity in entities.drain(..) {
+                commands.entity(entity).despawn();
             }
-            if let Some(id) = obstacle_sprite(tile) {
-                // Anchored by its foot to the bottom edge of the tile and
-                // depth-sorted once: it never moves, so it needs no `YSort`.
-                let foot = cy - TILE_SIZE * 0.5;
-                commands.spawn((
-                    library.sprite_frame(id, tile_hash(x, y, 1)),
-                    Anchor::BOTTOM_CENTER,
-                    Transform::from_xyz(cx, foot, ysort::depth(foot)),
-                    scope.clone(),
+        }
+        keep
+    });
+
+    let (min, max) = chunks_over(view, DRAW_MARGIN);
+    for chunk_y in min.y..=max.y {
+        for chunk_x in min.x..=max.x {
+            if let Entry::Vacant(slot) = shown.0.entry((chunk_x, chunk_y)) {
+                slot.insert(spawn_chunk(
+                    &mut commands,
+                    tiles,
+                    &library,
+                    &depth,
+                    &mut images,
+                    chunk_x,
+                    chunk_y,
                 ));
             }
         }
     }
 }
 
-/// Draws the ground of the chunk whose bottom-left tile is `(chunk_x,
-/// chunk_y)`. Tiles past the map edge stay transparent.
-fn bake_chunk(map: &WorldMap, library: &SpriteLibrary, chunk_x: i32, chunk_y: i32) -> Image {
+/// Spawns the ground image, water and obstacles of one chunk.
+fn spawn_chunk(
+    commands: &mut Commands,
+    tiles: &dyn TileSource,
+    library: &SpriteLibrary,
+    depth: &DepthOrigin,
+    images: &mut Assets<Image>,
+    chunk_x: i32,
+    chunk_y: i32,
+) -> Vec<Entity> {
+    let scope = DespawnOnExit(GameState::InRun);
+    let (left, bottom) = (chunk_x * CHUNK_TILES, chunk_y * CHUNK_TILES);
+    let image = images.add(bake_chunk(tiles, library, left, bottom));
+    let mut entities = vec![
+        commands
+            .spawn((
+                Sprite::from_image(image),
+                Anchor::BOTTOM_LEFT,
+                Transform::from_xyz(left as f32 * TILE_SIZE, bottom as f32 * TILE_SIZE, layer::GROUND),
+                scope.clone(),
+            ))
+            .id(),
+    ];
+
+    for y in bottom..bottom + CHUNK_TILES {
+        for x in left..left + CHUNK_TILES {
+            let tile = tiles.tile(x, y);
+            let (cx, cy) = WorldMap::tile_center(x, y);
+            if tile == Tile::Water {
+                // Water frames are an animation; every tile ripples in step.
+                entities.push(
+                    commands
+                        .spawn((
+                            library.animated(SpriteId::TileWater, WATER_FPS),
+                            Transform::from_xyz(cx, cy, WATER_Z),
+                            scope.clone(),
+                        ))
+                        .id(),
+                );
+            }
+            if let Some(id) = obstacle_sprite(tile) {
+                // Anchored by its foot to the bottom edge of the tile. It
+                // never moves, so it is depth-sorted only when spawned or
+                // when the depth origin moves.
+                let foot = cy - TILE_SIZE * 0.5;
+                entities.push(
+                    commands
+                        .spawn((
+                            library.sprite_frame(id, tile_hash(x, y, 1)),
+                            Anchor::BOTTOM_CENTER,
+                            Transform::from_xyz(cx, foot, depth.depth(foot)),
+                            StaticDepth,
+                            scope.clone(),
+                        ))
+                        .id(),
+                );
+            }
+        }
+    }
+    entities
+}
+
+/// Draws the ground of the chunk whose bottom-left tile is `(left,
+/// bottom)`.
+fn bake_chunk(tiles: &dyn TileSource, library: &SpriteLibrary, left: i32, bottom: i32) -> Image {
     let tile_px = TILE_SIZE as usize;
     let side = CHUNK_TILES as usize * tile_px;
     let mut pixels = vec![0u8; side * side * 4];
     for ty in 0..CHUNK_TILES {
         for tx in 0..CHUNK_TILES {
-            let (x, y) = (chunk_x + tx, chunk_y + ty);
-            if x >= map.width() as i32 || y >= map.height() as i32 {
-                continue;
-            }
-            let tile = map.tile(x, y);
-            let frame = library.pixels(ground_sprite(tile), tile_hash(x, y, 0));
+            let (x, y) = (left + tx, bottom + ty);
+            let frame = library.pixels(ground_sprite(tiles.tile(x, y)), tile_hash(x, y, 0));
             // Images are stored top row first while world y grows upwards.
             let top = (CHUNK_TILES - 1 - ty) as usize * tile_px;
             let left = tx as usize * tile_px;
@@ -139,6 +245,44 @@ fn bake_chunk(map: &WorldMap, library: &SpriteLibrary, chunk_x: i32, chunk_y: i3
     )
 }
 
+fn forget_ground(mut shown: ResMut<ShownGround>) {
+    // The entities themselves went with the previous run's state.
+    shown.0.clear();
+}
+
 pub(crate) fn register(app: &mut App) {
-    app.add_systems(OnEnter(GameState::InRun), spawn_tile_map.in_set(RunSetup::Spawn));
+    app.init_resource::<ShownGround>()
+        .add_systems(OnEnter(GameState::InRun), forget_ground.in_set(RunSetup::Reset))
+        .add_systems(
+            OnEnter(GameState::InRun),
+            stream_ground.in_set(RunSetup::Spawn).after(camera::snap_to_start),
+        )
+        .add_systems(
+            Update,
+            (
+                keep_terrain_loaded.after(GameSet::Movement).before(GameSet::Combat),
+                stream_ground.after(camera::apply_shake),
+            )
+                .run_if(in_state(GameState::InRun)),
+        );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chunks_over_covers_the_area_and_its_margin() {
+        let chunk = CHUNK_TILES as f32 * TILE_SIZE;
+        let area = Rect::new(-10.0, 5.0, chunk + 1.0, chunk - 1.0);
+        assert_eq!(chunks_over(area, 0), (IVec2::new(-1, 0), IVec2::new(1, 0)));
+        assert_eq!(chunks_over(area, 2), (IVec2::new(-3, -2), IVec2::new(3, 2)));
+    }
+
+    #[test]
+    fn the_view_falls_back_to_a_wide_area_around_the_start() {
+        let area = view_area(None, Vec2::new(100.0, 50.0));
+        assert_eq!(area.center(), Vec2::new(100.0, 50.0));
+        assert_eq!(area.half_size(), FALLBACK_HALF_VIEW);
+    }
 }

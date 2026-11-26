@@ -1,10 +1,11 @@
-//! The main camera: follows the hero inside the map and shakes on impact.
+//! The main camera: follows the hero (inside the map, if it has an edge)
+//! and shakes on impact.
 
 use bevy::camera::ScalingMode;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use emberbound_core::{GameSet, GameState, MainCamera, Player, RunSetup, ScreenShake, Terrain, VIEW_HEIGHT};
-use emberbound_domain::world::WorldMap;
+use emberbound_domain::world::TileSource;
 
 /// How quickly the camera closes the gap to the hero (1/s); the gap shrinks
 /// by `e^(-FOLLOW_RATE * dt)` each frame, whatever the frame rate.
@@ -19,7 +20,7 @@ const FALLBACK_ASPECT: f32 = 16.0 / 9.0;
 /// Where the camera rests without shake. Kept apart from the camera's
 /// `Transform` so that shake offsets never leak into the follow position.
 #[derive(Resource, Debug, Default)]
-struct CameraFocus(Vec2);
+pub(crate) struct CameraFocus(Vec2);
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
@@ -40,10 +41,10 @@ fn half_view(window: Option<&Window>) -> Vec2 {
     Vec2::new(VIEW_HEIGHT * aspect, VIEW_HEIGHT) * 0.5
 }
 
-/// Keeps the view inside the map. On an axis where the map is smaller than
-/// the view, the map is centred instead.
-fn clamp_to_map(target: Vec2, map: &WorldMap, half_view: Vec2) -> Vec2 {
-    let (width, height) = map.world_size();
+/// Keeps the view inside the map, if it has an edge. On an axis where the
+/// map is smaller than the view, the map is centred instead.
+fn clamp_to_map(target: Vec2, map: &dyn TileSource, half_view: Vec2) -> Vec2 {
+    let Some((width, height)) = map.bounds() else { return target };
     let size = Vec2::new(width, height);
     let clamp_axis = |value: f32, size: f32, half: f32| {
         if size > half * 2.0 { value.clamp(half, size - half) } else { size * 0.5 }
@@ -53,15 +54,15 @@ fn clamp_to_map(target: Vec2, map: &WorldMap, half_view: Vec2) -> Vec2 {
 
 /// A new run starts with the camera already on the hero's start position
 /// and without leftover shake.
-fn snap_to_start(
+pub(crate) fn snap_to_start(
     terrain: Res<Terrain>,
     window: Query<&Window, With<PrimaryWindow>>,
     mut focus: ResMut<CameraFocus>,
     mut shake: ResMut<ScreenShake>,
     mut camera: Single<&mut Transform, With<MainCamera>>,
 ) {
-    let (x, y) = terrain.0.spawn_point();
-    focus.0 = clamp_to_map(Vec2::new(x, y), &terrain.0, half_view(window.single().ok()));
+    let (x, y) = terrain.tiles().spawn_point();
+    focus.0 = clamp_to_map(Vec2::new(x, y), terrain.tiles(), half_view(window.single().ok()));
     shake.trauma = 0.0;
     camera.translation = focus.0.extend(camera.translation.z);
 }
@@ -74,7 +75,7 @@ fn follow_hero(
     hero: Single<&Transform, With<Player>>,
     mut focus: ResMut<CameraFocus>,
 ) {
-    let target = clamp_to_map(hero.translation.truncate(), &terrain.0, half_view(window.single().ok()));
+    let target = clamp_to_map(hero.translation.truncate(), terrain.tiles(), half_view(window.single().ok()));
     let blend = 1.0 - (-FOLLOW_RATE * time.delta_secs()).exp();
     focus.0 = focus.0.lerp(target, blend);
 }
@@ -82,7 +83,7 @@ fn follow_hero(
 /// Places the camera at the focus plus this frame's shake, and lets the
 /// trauma fade. The offset is trauma squared, so small hits barely register
 /// while big ones kick.
-fn apply_shake(
+pub(crate) fn apply_shake(
     time: Res<Time>,
     focus: Res<CameraFocus>,
     mut shake: ResMut<ScreenShake>,
