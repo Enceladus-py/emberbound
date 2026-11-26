@@ -160,3 +160,188 @@ fn recall_strays(
 pub(crate) fn plugin(app: &mut App) {
     app.add_systems(Update, recall_strays.run_if(hero_alive).in_set(AiStep::Direct));
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::state::app::StatesPlugin;
+    use emberbound_core::CorePlugin;
+    use emberbound_domain::bestiary::DragonKind;
+    use emberbound_domain::world::{self, WorldMap};
+
+    use super::*;
+
+    const TRIES: usize = 300;
+
+    fn app(seed: u64) -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin))
+            // The sprite library uploads into these; no renderer is needed.
+            .init_resource::<Assets<Image>>()
+            .init_resource::<Assets<TextureAtlasLayout>>()
+            .add_plugins(CorePlugin)
+            .insert_resource(Terrain(world::generate(72, 72, &mut GameRng::new(seed))))
+            .insert_resource(GameRng::new(seed + 1))
+            .add_systems(Update, recall_strays);
+        app
+    }
+
+    fn map(app: &App) -> WorldMap {
+        app.world().resource::<Terrain>().0.clone()
+    }
+
+    fn centre(app: &App) -> Vec2 {
+        Vec2::from(map(app).spawn_point())
+    }
+
+    /// Runs `pick` with a fresh [`Spawner`] `TRIES` times and returns every answer.
+    fn sample<T: Send + 'static>(app: &mut App, pick: fn(&mut Spawner) -> T) -> Vec<T> {
+        app.world_mut()
+            .run_system_once(move |mut spawner: Spawner| {
+                (0..TRIES).map(|_| pick(&mut spawner)).collect::<Vec<T>>()
+            })
+            .unwrap()
+    }
+
+    fn in_ring(spot: Vec2, hero: Vec2) -> bool {
+        // A little slack for float rounding.
+        (RING_MIN - 0.01..=RING_MAX + 0.01).contains(&spot.distance(hero))
+    }
+
+    fn inside_margin(map: &WorldMap, spot: Vec2, radius: f32) -> bool {
+        let (width, height) = map.world_size();
+        let margin = MAP_MARGIN + radius;
+        (margin..=width - margin).contains(&spot.x) && (margin..=height - margin).contains(&spot.y)
+    }
+
+    #[test]
+    fn ring_spots_lie_on_the_ring_and_fit() {
+        for seed in [1, 2, 3] {
+            let mut app = app(seed);
+            let hero = centre(&app);
+            for walks in [true, false] {
+                let spots = app
+                    .world_mut()
+                    .run_system_once(move |mut spawner: Spawner| {
+                        let mut spots = Vec::new();
+                        for _ in 0..TRIES {
+                            if let Some(spot) = spawner.ring_spot(hero, 6.0, walks) {
+                                spots.push((spot, spawner.fits(spot, 6.0, walks)));
+                            }
+                        }
+                        spots
+                    })
+                    .unwrap();
+                assert!(spots.len() > TRIES / 2, "seed {seed}: most tries find a spot");
+                for (spot, fits) in spots {
+                    assert!(in_ring(spot, hero), "seed {seed}: {spot} is off the ring around {hero}");
+                    assert!(fits, "seed {seed}: {spot} does not fit");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn walkers_are_never_placed_on_blocked_ground() {
+        for seed in [4, 5, 6] {
+            let mut app = app(seed);
+            let map = map(&app);
+            let spots = sample(&mut app, |spawner| {
+                let hero = Vec2::from(spawner.terrain.0.spawn_point());
+                spawner.ring_spot(hero, 7.0, true)
+            });
+            let found: Vec<Vec2> = spots.into_iter().flatten().collect();
+            assert!(!found.is_empty(), "seed {seed}: no walker spot at all");
+            for spot in found {
+                assert!(map.is_walkable_at(spot.x, spot.y, 7.0), "seed {seed}: walker at {spot}");
+                let (tx, ty) = WorldMap::tile_coords(spot.x, spot.y);
+                assert!(map.tile(tx, ty).is_walkable());
+            }
+        }
+    }
+
+    #[test]
+    fn flyers_fit_anywhere_inside_the_margin_but_not_beyond() {
+        let mut app = app(7);
+        let map = map(&app);
+        let (width, height) = map.world_size();
+        let verdicts = app
+            .world_mut()
+            .run_system_once(move |spawner: Spawner| {
+                let margin = MAP_MARGIN + 4.0;
+                [
+                    spawner.fits(Vec2::new(margin + 1.0, margin + 1.0), 4.0, false),
+                    spawner.fits(Vec2::new(width - margin - 1.0, height / 2.0), 4.0, false),
+                    spawner.fits(Vec2::new(margin - 1.0, height / 2.0), 4.0, false),
+                    spawner.fits(Vec2::new(width / 2.0, height - margin + 1.0), 4.0, false),
+                    // The forest border blocks walkers, though a flyer may hover near it.
+                    spawner.fits(Vec2::new(1.0, 1.0), 4.0, true),
+                ]
+            })
+            .unwrap();
+        assert_eq!(verdicts, [true, true, false, false, false]);
+    }
+
+    #[test]
+    fn a_spot_is_given_up_when_nothing_fits() {
+        let mut app = app(8);
+        // Far outside the valley: no flyer spot on that ring can fit.
+        let misses = sample(&mut app, |spawner| spawner.ring_spot(Vec2::new(-5_000.0, -5_000.0), 4.0, false));
+        assert!(misses.iter().all(Option::is_none));
+    }
+
+    #[test]
+    fn the_nearest_fallback_stays_inside_the_valley_from_any_corner() {
+        let mut app = app(9);
+        let map = map(&app);
+        let (width, height) = map.world_size();
+        // The last hero stands so far out that no ring spot fits: only the fallback answers.
+        let corners = [
+            Vec2::ZERO,
+            Vec2::new(width, 0.0),
+            Vec2::new(0.0, height),
+            Vec2::new(width, height),
+            Vec2::splat(-2_000.0),
+        ];
+        for corner in corners {
+            let spots = app
+                .world_mut()
+                .run_system_once(move |mut spawner: Spawner| {
+                    (0..TRIES).map(|_| spawner.ring_spot_or_nearest(corner, 10.0)).collect::<Vec<_>>()
+                })
+                .unwrap();
+            for spot in spots {
+                assert!(inside_margin(&map, spot, 10.0), "{spot} from corner {corner}");
+            }
+        }
+    }
+
+    #[test]
+    fn strays_beyond_the_leash_return_to_the_ring_and_near_ones_stay() {
+        let mut app = app(10);
+        let hero = centre(&app);
+        app.world_mut().spawn((Player, Transform::from_translation(hero.extend(0.0)), Health::full(100.0)));
+        let far = hero + Vec2::new(LEASH + 40.0, 0.0);
+        let near = hero + Vec2::new(0.0, LEASH - 10.0);
+        let flyer = Body { radius: 5.0, walks: false };
+        let stray = app
+            .world_mut()
+            .spawn((Monster { kind: MonsterKind::Bat, xp_reward: 1 }, actor_transform(far), flyer))
+            .id();
+        let lost_dragon = app
+            .world_mut()
+            .spawn((Dragon { kind: DragonKind::FrostDrake, xp_reward: 1 }, actor_transform(far), flyer))
+            .id();
+        let nearby = app
+            .world_mut()
+            .spawn((Monster { kind: MonsterKind::Bat, xp_reward: 1 }, actor_transform(near), flyer))
+            .id();
+        app.update();
+
+        let position = |entity: Entity| app.world().get::<Transform>(entity).unwrap().translation.truncate();
+        for recalled in [stray, lost_dragon] {
+            assert!(in_ring(position(recalled), hero), "{} was not recalled", position(recalled));
+        }
+        assert_eq!(position(nearby), near, "a creature within the leash is left alone");
+    }
+}
