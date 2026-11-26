@@ -36,6 +36,16 @@ pub struct WorldMap {
 }
 
 impl WorldMap {
+    /// A map with the given tiles, row by row from `y = 0` upwards. Maps for
+    /// play come from [`generate`]; this is for small hand-made layouts.
+    ///
+    /// # Panics
+    /// If `tiles` does not hold exactly `width * height` tiles.
+    pub fn from_tiles(width: u32, height: u32, tiles: Vec<Tile>) -> Self {
+        assert_eq!(tiles.len(), (width * height) as usize, "a {width}x{height} map needs that many tiles");
+        Self { width, height, tiles }
+    }
+
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -270,6 +280,26 @@ pub fn generate(width: u32, height: u32, rng: &mut dyn RandomSource) -> WorldMap
 mod tests {
     use super::*;
     use crate::ports::testing::TestRng;
+
+    #[test]
+    fn a_hand_made_map_keeps_its_layout() {
+        let map = WorldMap::from_tiles(
+            3,
+            2,
+            vec![Tile::Grass, Tile::Rock, Tile::Grass, Tile::Water, Tile::Dirt, Tile::Sand],
+        );
+        assert_eq!((map.width(), map.height()), (3, 2));
+        assert_eq!(map.tile(1, 0), Tile::Rock);
+        assert_eq!(map.tile(0, 1), Tile::Water);
+        assert_eq!(map.tile(2, 1), Tile::Sand);
+        assert_eq!(map.tile(3, 0), Tile::Tree, "outside is still forest");
+    }
+
+    #[test]
+    #[should_panic]
+    fn a_hand_made_map_needs_every_tile() {
+        WorldMap::from_tiles(2, 2, vec![Tile::Grass; 3]);
+    }
 
     #[test]
     fn spawn_is_open_and_borders_are_sealed() {
