@@ -1,3 +1,5 @@
 /target
 /dist
 .DS_Store
+# The best run, remembered by native builds.
+emberbound-best-run.txt

@@ -13,4 +13,5 @@ pub mod companion;
 pub mod encounter;
 pub mod ports;
 pub mod progression;
+pub mod records;
 pub mod world;

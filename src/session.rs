@@ -5,10 +5,11 @@
 use bevy::prelude::*;
 use bevy::window::{WindowFocused, WindowOccluded};
 use emberbound_core::{
-    ActorDied, ActorKind, Armor, BoonChosen, BoonOffer, GameRng, GameSet, GameState, Health, HeroState,
-    LeveledUp, Player, PlayerIntent, RunPhase, RunSetup, RunStats, Terrain, XpCollected,
+    ActorDied, ActorKind, Armor, BestRunRecord, BoonChosen, BoonOffer, GameRng, GameSet, GameState, Health,
+    HeroState, LeveledUp, Player, PlayerIntent, RunPhase, RunSetup, RunStats, Terrain, XpCollected,
 };
 use emberbound_domain::boons::offer_boons;
+use emberbound_domain::records::BestRun;
 use emberbound_domain::world;
 
 /// Size of the valley in tiles.
@@ -172,10 +173,27 @@ fn toggle_pause(
     }
 }
 
-fn finish_run(time: Res<Time>, mut aftermath: ResMut<Aftermath>, mut next: ResMut<NextState<GameState>>) {
+/// Shows the outcome once the aftermath is over, after weighing the run
+/// against the best one so far.
+fn finish_run(
+    time: Res<Time>,
+    stats: Res<RunStats>,
+    hero: Res<HeroState>,
+    mut record: ResMut<BestRunRecord>,
+    mut aftermath: ResMut<Aftermath>,
+    mut next: ResMut<NextState<GameState>>,
+) {
     if let Some((timer, outcome)) = aftermath.0.as_mut()
         && timer.tick(time.delta()).is_finished()
     {
+        let run = BestRun {
+            dragons_slain: stats.dragons_slain,
+            level: hero.progress.level(),
+            kills: stats.kills,
+            elapsed: stats.elapsed,
+        };
+        let (best, new_best) = BestRun::record(record.best, run);
+        *record = BestRunRecord { best: Some(best), new_best };
         next.set(*outcome);
         aftermath.0 = None;
     }
@@ -460,5 +478,58 @@ mod tests {
         app.update();
         assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::InRun);
         assert_eq!(phase(&app), RunPhase::Paused);
+    }
+
+    /// Lets the decided run's aftermath run out, so the outcome screen follows.
+    fn end_aftermath(app: &mut App) {
+        let mut aftermath = app.world_mut().resource_mut::<Aftermath>();
+        let (timer, _) = aftermath.0.as_mut().expect("the run is decided");
+        timer.set_elapsed(std::time::Duration::from_secs_f32(AFTERMATH_SECONDS));
+        app.update();
+    }
+
+    fn record(app: &App) -> BestRunRecord {
+        *app.world().resource::<BestRunRecord>()
+    }
+
+    #[test]
+    fn the_first_run_ever_is_a_new_best() {
+        let mut app = app();
+        die(&mut app, ActorKind::Monster(MonsterKind::Slime));
+        die(&mut app, ActorKind::Hero);
+        app.update();
+        assert!(record(&app).best.is_none(), "nothing is recorded before the run ends");
+        end_aftermath(&mut app);
+
+        let record = record(&app);
+        assert!(record.new_best);
+        let best = record.best.expect("the run was recorded");
+        assert_eq!((best.dragons_slain, best.level, best.kills), (0, 1, 1));
+        assert!(best.elapsed > 0.0);
+    }
+
+    #[test]
+    fn a_worse_run_keeps_the_old_record() {
+        let mut app = app();
+        let old = BestRun { dragons_slain: 2, level: 12, kills: 300, elapsed: 600.0 };
+        app.world_mut().resource_mut::<BestRunRecord>().best = Some(old);
+        die(&mut app, ActorKind::Hero);
+        app.update();
+        end_aftermath(&mut app);
+        assert_eq!(record(&app).best, Some(old));
+        assert!(!record(&app).new_best);
+    }
+
+    #[test]
+    fn a_better_run_breaks_the_record() {
+        let mut app = app();
+        let old = BestRun { dragons_slain: 0, level: 3, kills: 10, elapsed: 60.0 };
+        *app.world_mut().resource_mut::<BestRunRecord>() = BestRunRecord { best: Some(old), new_best: false };
+        die(&mut app, ActorKind::Dragon(DragonKind::MossWyrm));
+        die(&mut app, ActorKind::Hero);
+        app.update();
+        end_aftermath(&mut app);
+        assert!(record(&app).new_best);
+        assert_eq!(record(&app).best.map(|best| best.dragons_slain), Some(1));
     }
 }

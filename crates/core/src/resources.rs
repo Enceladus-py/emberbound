@@ -3,6 +3,7 @@ use emberbound_domain::bestiary::DragonKind;
 use emberbound_domain::boons::Boon;
 use emberbound_domain::ports::RandomSource;
 use emberbound_domain::progression::{HeroStats, Progress};
+use emberbound_domain::records::BestRun;
 use emberbound_domain::world::{self, WorldMap};
 
 /// Device-independent player input for this frame. Gameplay reads this, never
@@ -54,6 +55,15 @@ pub struct RunStats {
     pub lure_progress: f32,
     /// Next dragon to appear (or the one being fought). Maintained by `monsters`.
     pub next_dragon: Option<DragonKind>,
+}
+
+/// The best run so far, kept between runs (and page reloads). Loaded and
+/// updated by the app when a run ends; read by `ui` for the end screens.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct BestRunRecord {
+    pub best: Option<BestRun>,
+    /// The run that just ended set the record.
+    pub new_best: bool,
 }
 
 /// The boons currently on offer while in [`crate::RunPhase::ChoosingBoon`].
@@ -123,6 +133,7 @@ pub(crate) fn register(app: &mut App) {
     app.init_resource::<PlayerIntent>()
         .init_resource::<HeroState>()
         .init_resource::<RunStats>()
+        .init_resource::<BestRunRecord>()
         .init_resource::<BoonOffer>()
         .init_resource::<Terrain>()
         .init_resource::<ScreenShake>()
