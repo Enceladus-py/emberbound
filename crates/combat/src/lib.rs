@@ -6,7 +6,8 @@
 //!
 //! Frame order inside this crate:
 //! `aim -> sword -> companion -> pickup motion -> projectiles / contact ->
-//! invulnerability, damage, loot, collection, regeneration -> burial`.
+//! invulnerability, damage, loot, collection, folding far loot, regeneration ->
+//! burial`.
 
 mod aim;
 mod companion;
@@ -51,6 +52,7 @@ impl Plugin for CombatPlugin {
                         loot::drop_loot,
                         wildfire::burst_corpses,
                         loot::collect,
+                        loot::fold_far_orbs,
                         regen::regenerate,
                     )
                         .chain()

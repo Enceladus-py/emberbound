@@ -22,6 +22,11 @@ const MAGNET_SPEED: f32 = 210.0;
 const MAGNET_RATE: f32 = 7.0;
 const COLLECT_RADIUS: f32 = 7.0;
 const BOB_HEIGHT: f32 = 1.5;
+/// Most ember orbs allowed on the ground at once; beyond it the farthest are
+/// folded into one so a long run cannot pile up loot (and frame time).
+const MAX_EMBER_ORBS: usize = 250;
+/// A folded orb is drawn a little larger, so it reads as a richer prize.
+const FOLDED_SCALE: f32 = 1.5;
 const BOB_SPEED: f32 = 4.0;
 
 #[derive(Clone, Copy)]
@@ -136,6 +141,73 @@ pub fn drift(
     }
 }
 
+/// Ember orbs to fold together: `absorb` are removed and their embers go to
+/// `keep`, which then carries `amount`.
+#[derive(Debug, PartialEq)]
+struct Fold {
+    keep: usize,
+    absorb: Vec<usize>,
+    amount: u32,
+}
+
+/// Chooses how to bring `orbs` (position and embers each) down to `cap` by
+/// folding the ones farthest from the hero into one. Orbs within the
+/// magnet's reach are never touched, so it may fold fewer than needed, and
+/// does nothing when fewer than two orbs could be folded.
+fn plan_fold(orbs: &[(Vec2, u32)], hero: Vec2, magnet_radius: f32, cap: usize) -> Option<Fold> {
+    let excess = orbs.len().checked_sub(cap).filter(|excess| *excess > 0)?;
+    let mut far: Vec<(usize, f32)> = orbs
+        .iter()
+        .enumerate()
+        .map(|(index, (position, _))| (index, position.distance(hero)))
+        .filter(|(_, distance)| *distance >= magnet_radius)
+        .collect();
+    // Farthest first; folding n + 1 orbs into one removes n.
+    far.sort_by(|a, b| b.1.total_cmp(&a.1));
+    far.truncate(excess + 1);
+    if far.len() < 2 {
+        return None;
+    }
+    // The nearest of the chosen survives, so the prize stays as close as it was.
+    let (keep, _) = far.pop()?;
+    let absorb: Vec<usize> = far.into_iter().map(|(index, _)| index).collect();
+    let amount = orbs[keep].1 + absorb.iter().map(|index| orbs[*index].1).sum::<u32>();
+    Some(Fold { keep, absorb, amount })
+}
+
+/// Keeps the number of ember orbs bounded without losing any embers.
+pub fn fold_far_orbs(
+    hero_state: Res<HeroState>,
+    hero: Single<(&Transform, &Health), (With<Player>, Without<Pickup>)>,
+    mut pickups: Query<(Entity, &mut Pickup, &mut Transform)>,
+    mut commands: Commands,
+) {
+    let orbs: Vec<(Entity, Vec2, u32)> = pickups
+        .iter()
+        .filter_map(|(entity, pickup, _)| match pickup.reward {
+            Reward::Embers(amount) => Some((entity, pickup.position, amount)),
+            Reward::Heart(_) => None,
+        })
+        .collect();
+    if orbs.len() <= MAX_EMBER_ORBS {
+        return;
+    }
+    let (hero_transform, hero_health) = *hero;
+    let magnet_radius = if hero_health.is_dead() { 0.0 } else { hero_state.stats.pickup_radius };
+    let layout: Vec<(Vec2, u32)> = orbs.iter().map(|(_, position, amount)| (*position, *amount)).collect();
+    let Some(fold) = plan_fold(&layout, hero_transform.translation.truncate(), magnet_radius, MAX_EMBER_ORBS)
+    else {
+        return;
+    };
+    for index in fold.absorb {
+        commands.entity(orbs[index].0).try_despawn();
+    }
+    if let Ok((_, mut pickup, mut transform)) = pickups.get_mut(orbs[fold.keep].0) {
+        pickup.reward = Reward::Embers(fold.amount);
+        transform.scale = Vec3::new(FOLDED_SCALE, FOLDED_SCALE, 1.0);
+    }
+}
+
 /// Hands pickups that reached the living hero over to them.
 pub fn collect(
     mut hero: Single<(&Transform, &mut Health), With<Player>>,
@@ -213,6 +285,103 @@ mod tests {
 
     fn drain<M: Message>(app: &mut App) -> Vec<M> {
         app.world_mut().resource_mut::<Messages<M>>().drain().collect()
+    }
+
+    fn total_embers(app: &mut App) -> u32 {
+        embers(&rewards(app)).iter().sum()
+    }
+
+    #[test]
+    fn nothing_is_folded_at_or_under_the_cap() {
+        let orbs = vec![(Vec2::new(500.0, 0.0), 1); 5];
+        assert_eq!(plan_fold(&orbs, Vec2::ZERO, 10.0, 5), None);
+        assert_eq!(plan_fold(&orbs, Vec2::ZERO, 10.0, 9), None);
+        assert_eq!(plan_fold(&[], Vec2::ZERO, 10.0, 0), None);
+    }
+
+    #[test]
+    fn the_farthest_orbs_fold_into_the_nearest_of_them() {
+        // Index = distance rank: orb i lies 100 * (i + 1) units away.
+        let orbs: Vec<(Vec2, u32)> =
+            (0..6).map(|i| (Vec2::new(100.0 * (i + 1) as f32, 0.0), i + 1)).collect();
+        let fold = plan_fold(&orbs, Vec2::ZERO, 10.0, 4).unwrap();
+        // Two too many: the three farthest become one.
+        assert_eq!(fold.keep, 3);
+        let mut absorb = fold.absorb.clone();
+        absorb.sort();
+        assert_eq!(absorb, vec![4, 5]);
+        assert_eq!(fold.amount, 4 + 5 + 6);
+        assert_eq!(orbs.len() - fold.absorb.len(), 4);
+    }
+
+    #[test]
+    fn folding_keeps_every_ember() {
+        for (count, cap) in [(10, 3), (40, 39), (300, 250), (7, 1)] {
+            let orbs: Vec<(Vec2, u32)> = (0..count)
+                .map(|i| (Vec2::from_angle(i as f32) * (50.0 + i as f32 * 3.0), 1 + i % 7))
+                .collect();
+            let before: u32 = orbs.iter().map(|(_, amount)| amount).sum();
+            let fold = plan_fold(&orbs, Vec2::ZERO, 20.0, cap as usize).unwrap();
+            let after: u32 = orbs
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != fold.keep && !fold.absorb.contains(index))
+                .map(|(_, (_, amount))| amount)
+                .sum::<u32>()
+                + fold.amount;
+            assert_eq!(after, before, "{count} orbs, cap {cap}");
+            assert_eq!(count as usize - fold.absorb.len(), cap as usize, "{count} orbs, cap {cap}");
+        }
+    }
+
+    #[test]
+    fn orbs_within_the_magnet_are_never_folded() {
+        let near = (Vec2::new(5.0, 0.0), 9);
+        let mut orbs = vec![near; 6];
+        orbs.push((Vec2::new(400.0, 0.0), 1));
+        orbs.push((Vec2::new(300.0, 0.0), 1));
+        orbs.push((Vec2::new(200.0, 0.0), 1));
+        // Six too many, but only three lie outside the magnet.
+        let fold = plan_fold(&orbs, Vec2::ZERO, 34.0, 3).unwrap();
+        let touched: Vec<usize> = fold.absorb.iter().copied().chain([fold.keep]).collect();
+        assert!(touched.iter().all(|index| *index >= 6), "{touched:?}");
+        assert_eq!(fold.amount, 3);
+
+        // With a single far orb there is nothing to fold it into.
+        assert_eq!(plan_fold(&orbs[..7], Vec2::ZERO, 34.0, 3), None);
+    }
+
+    #[test]
+    fn the_ground_never_holds_more_than_the_cap_of_ember_orbs() {
+        let mut app = app();
+        app.add_systems(Update, fold_far_orbs.after(collect));
+        spawn_hero(&mut app);
+        let radius = app.world().resource::<HeroState>().stats.pickup_radius;
+        let near = spawn_pickup_at(&mut app, Reward::Embers(2), Vec2::new(radius - 5.0, 0.0));
+        let heart = spawn_pickup_at(&mut app, Reward::Heart(10.0), Vec2::new(900.0, 900.0));
+        for i in 0..MAX_EMBER_ORBS + 30 {
+            spawn_pickup_at(&mut app, Reward::Embers(3), Vec2::from_angle(i as f32) * (100.0 + i as f32));
+        }
+        let before = total_embers(&mut app);
+        app.update();
+
+        let after = rewards(&mut app);
+        assert_eq!(embers(&after).len(), MAX_EMBER_ORBS);
+        assert_eq!(total_embers(&mut app), before, "no embers are lost");
+        assert_eq!(hearts(&after), 1);
+        assert!(app.world().get_entity(heart).is_ok(), "hearts are never folded");
+        let near_pickup = app.world().get::<Pickup>(near).expect("an orb in reach is never folded");
+        assert!(matches!(near_pickup.reward, Reward::Embers(2)));
+
+        let world = app.world_mut();
+        let folded: Vec<u32> = world
+            .query::<(&Pickup, &Transform)>()
+            .iter(world)
+            .filter(|(_, transform)| transform.scale.x == FOLDED_SCALE)
+            .filter_map(|(pickup, _)| if let Reward::Embers(n) = pickup.reward { Some(n) } else { None })
+            .collect();
+        // 31 too many (the near orb counts too): the 32 farthest become one larger orb.
+        assert_eq!(folded, vec![3 * 32]);
     }
 
     #[test]
