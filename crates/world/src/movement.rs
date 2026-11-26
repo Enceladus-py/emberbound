@@ -180,7 +180,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(20)))
-            .insert_resource(Terrain(map(rows)))
+            .insert_resource(Terrain::Valley(map(rows)))
             .add_systems(Update, (integrate_velocities, decay_knockback).chain());
         // The first update only starts the clock.
         app.update();
@@ -247,7 +247,9 @@ mod tests {
     #[test]
     fn the_hero_is_kept_on_the_map() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).insert_resource(Terrain(map(OPEN))).add_systems(Update, confine_hero);
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Terrain::Valley(map(OPEN)))
+            .add_systems(Update, confine_hero);
         let (width, height) = (6.0 * TILE_SIZE, 6.0 * TILE_SIZE);
         let body = Body { radius: RADIUS, walks: true };
         let cases = [

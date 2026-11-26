@@ -10,10 +10,7 @@ use emberbound_core::{
 };
 use emberbound_domain::boons::offer_boons;
 use emberbound_domain::records::BestRun;
-use emberbound_domain::world;
 
-/// Size of the valley in tiles.
-const MAP_SIZE: (u32, u32) = (72, 72);
 const BOONS_PER_OFFER: usize = 3;
 /// Seconds the world lingers after the hero falls or the last dragon dies.
 const AFTERMATH_SECONDS: f32 = 1.4;
@@ -62,7 +59,7 @@ fn reset_run(
 ) {
     // The moment the player pressed start is as good a seed as any.
     *rng = GameRng::new(time.elapsed().as_nanos() as u64);
-    terrain.0 = world::generate(MAP_SIZE.0, MAP_SIZE.1, &mut *rng);
+    *terrain = Terrain::endless(rng.next_u64());
     *hero = HeroState::default();
     *stats = RunStats::default();
     offer.0.clear();

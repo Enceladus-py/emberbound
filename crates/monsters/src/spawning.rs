@@ -1,4 +1,5 @@
-//! Where and how lesser monsters enter the valley.
+//! Where and how lesser monsters (and dragons) enter play: on a ring just
+//! outside the view, wherever the hero is.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -39,9 +40,10 @@ pub(crate) fn shadow(sprites: &SpriteLibrary, drop: f32, scale: f32) -> impl Bun
     )
 }
 
-/// Transform of a freshly spawned actor (`world` keeps the z sorted later).
+/// Transform of a freshly spawned actor. `world` sorts its z by y (from a
+/// depth origin near the hero) before it is first drawn.
 pub(crate) fn actor_transform(position: Vec2) -> Transform {
-    Transform::from_translation(position.extend(layer::ACTORS - position.y * 0.001))
+    Transform::from_translation(position.extend(layer::ACTORS))
 }
 
 fn sprite_of(kind: MonsterKind) -> SpriteId {
@@ -181,14 +183,15 @@ mod tests {
             .init_resource::<Assets<Image>>()
             .init_resource::<Assets<TextureAtlasLayout>>()
             .add_plugins(CorePlugin)
-            .insert_resource(Terrain(world::generate(72, 72, &mut GameRng::new(seed))))
+            .insert_resource(Terrain::Valley(world::generate(72, 72, &mut GameRng::new(seed))))
             .insert_resource(GameRng::new(seed + 1))
             .add_systems(Update, recall_strays);
         app
     }
 
     fn map(app: &App) -> WorldMap {
-        app.world().resource::<Terrain>().0.clone()
+        let Terrain::Valley(map) = app.world().resource::<Terrain>() else { panic!("tests use a valley") };
+        map.clone()
     }
 
     fn centre(app: &App) -> Vec2 {
@@ -248,7 +251,7 @@ mod tests {
             let mut app = app(seed);
             let map = map(&app);
             let spots = sample(&mut app, |spawner| {
-                let hero = Vec2::from(spawner.terrain.0.spawn_point());
+                let hero = Vec2::from(spawner.terrain.tiles().spawn_point());
                 spawner.ring_spot(hero, 7.0, true)
             });
             let found: Vec<Vec2> = spots.into_iter().flatten().collect();
@@ -344,5 +347,36 @@ mod tests {
             assert!(in_ring(position(recalled), hero), "{} was not recalled", position(recalled));
         }
         assert_eq!(position(nearby), near, "a creature within the leash is left alone");
+    }
+
+    #[test]
+    fn on_the_endless_world_spots_ring_the_hero_wherever_they_roam() {
+        let mut app = app(11);
+        let hero = Vec2::new(23_456.0, -17_890.0);
+        let mut terrain = Terrain::endless(77);
+        terrain.load_around(hero);
+        app.insert_resource(terrain);
+        let spots = app
+            .world_mut()
+            .run_system_once(move |mut spawner: Spawner| {
+                (0..TRIES)
+                    .map(|i| {
+                        let walks = i % 2 == 0;
+                        (spawner.ring_spot(hero, 6.0, walks), walks, spawner.ring_spot_or_nearest(hero, 10.0))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap();
+        let found = spots.iter().filter(|(spot, _, _)| spot.is_some()).count();
+        assert!(found > TRIES / 2, "only {found} spots found");
+        let terrain = app.world().resource::<Terrain>();
+        for (spot, walks, dragon) in spots {
+            if let Some(spot) = spot {
+                assert!(in_ring(spot, hero), "{spot} is off the ring");
+                assert!(!walks || terrain.tiles().is_walkable_at(spot.x, spot.y, 6.0), "walker at {spot}");
+            }
+            // No map edge to pull a dragon back to: it always arrives on the ring.
+            assert!(in_ring(dragon, hero), "dragon at {dragon}");
+        }
     }
 }

@@ -166,10 +166,13 @@ impl TileSource for ChunkedWorld {
     }
 }
 
-/// Shortest walking distances from every tile to one target tile. Walkers
-/// follow it downhill to reach the target around ponds, copses and rocks.
+/// Shortest walking distances from every tile of a rectangular window to
+/// one target tile. Walkers follow it downhill to reach the target around
+/// ponds, copses and rocks. Outside the window there is no route.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlowField {
+    /// Grid coordinates of the window's bottom-left tile.
+    origin: (i32, i32),
     width: i32,
     height: i32,
     target: (i32, i32),
@@ -180,11 +183,27 @@ pub struct FlowField {
 impl FlowField {
     const UNREACHABLE: u16 = u16::MAX;
 
-    /// Floods outwards from `target` over walkable tiles (4-connected).
+    /// Floods outwards from `target` over the whole map (4-connected).
     pub fn towards(map: &WorldMap, target: (i32, i32)) -> Self {
-        let (width, height) = (map.width as i32, map.height as i32);
+        Self::flood(map, target, (0, 0), (map.width as i32, map.height as i32))
+    }
+
+    /// Floods outwards from `target` over the square of tiles within
+    /// `radius` of it, so the cost stays the same on an endless world.
+    pub fn around(tiles: &dyn TileSource, target: (i32, i32), radius: i32) -> Self {
+        let radius = radius.max(0);
+        let side = 2 * radius + 1;
+        Self::flood(tiles, target, (target.0 - radius, target.1 - radius), (side, side))
+    }
+
+    fn flood(
+        tiles: &dyn TileSource,
+        target: (i32, i32),
+        origin: (i32, i32),
+        (width, height): (i32, i32),
+    ) -> Self {
         let mut field =
-            Self { width, height, target, steps: vec![Self::UNREACHABLE; (width * height) as usize] };
+            Self { origin, width, height, target, steps: vec![Self::UNREACHABLE; (width * height) as usize] };
         let Some(start) = field.index(target.0, target.1) else { return field };
         field.steps[start] = 0;
         let mut queue = std::collections::VecDeque::from([target]);
@@ -193,7 +212,7 @@ impl FlowField {
             for (nx, ny) in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] {
                 if let Some(i) = field.index(nx, ny)
                     && field.steps[i] == Self::UNREACHABLE
-                    && map.tile(nx, ny).is_walkable()
+                    && tiles.tile(nx, ny).is_walkable()
                 {
                     field.steps[i] = next;
                     queue.push_back((nx, ny));
@@ -208,6 +227,7 @@ impl FlowField {
     }
 
     fn index(&self, x: i32, y: i32) -> Option<usize> {
+        let (x, y) = (x - self.origin.0, y - self.origin.1);
         (x >= 0 && y >= 0 && x < self.width && y < self.height).then(|| (y * self.width + x) as usize)
     }
 
@@ -477,5 +497,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_windowed_flow_field_routes_around_obstacles_far_from_the_origin() {
+        let mut world = ChunkedWorld::new(13, 64);
+        let target = (5_000, -3_000);
+        world.load_around(target.0, target.1, 1);
+        // Pick a walkable target tile close by.
+        let target = (0..64)
+            .map(|i| (target.0 + i, target.1))
+            .find(|&(x, y)| world.tile_at(x, y).is_walkable())
+            .expect("some open ground");
+        let radius = 24;
+        let field = FlowField::around(&world, target, radius);
+        assert_eq!(field.steps(target.0, target.1), Some(0));
+        assert_eq!(field.steps(target.0 + radius + 1, target.1), None, "outside the window");
+        let mut routed = 0;
+        for y in target.1 - radius..=target.1 + radius {
+            for x in target.0 - radius..=target.0 + radius {
+                let Some(mut remaining) = field.steps(x, y) else { continue };
+                assert!(world.tile_at(x, y).is_walkable());
+                let (mut tx, mut ty) = (x, y);
+                while remaining > 0 {
+                    let (wx, wy) = WorldMap::tile_center(tx, ty);
+                    let (dx, dy) = field.direction(wx, wy).expect("reachable tile has a way on");
+                    (tx, ty) = WorldMap::tile_coords(wx + dx * TILE_SIZE * 1.2, wy + dy * TILE_SIZE * 1.2);
+                    let next = field.steps(tx, ty).expect("the route stays in the window");
+                    assert!(next < remaining);
+                    remaining = next;
+                }
+                routed += 1;
+            }
+        }
+        assert!(routed > (2 * radius + 1).pow(2) as usize / 3, "only {routed} tiles routed");
     }
 }
