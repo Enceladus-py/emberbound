@@ -42,8 +42,9 @@ emberbound_ui.workspace = true
 workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# Already in the tree through Bevy; used to ask the browser about its pointer.
-web-sys = { version = "0.3", features = ["Window", "MediaQueryList"] }
+# Already in the tree through Bevy; used to ask the browser about its pointer
+# and to keep the best run in localStorage.
+web-sys = { version = "0.3", features = ["Window", "MediaQueryList", "Storage"] }
 
 [features]
 # Debug keys for play-testing (see src/cheats.rs). Never enabled in releases.

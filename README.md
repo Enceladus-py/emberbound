@@ -7,6 +7,8 @@ You are the last Wyrmwarden, bonded to a hatchling dragon called Cinder. Cut
 through the monsters of a procedurally generated valley, gather their embers,
 choose a boon every level, and lure out and slay three elder dragons: the Moss
 Wyrm, the Frost Drake and the Ashen Tyrant. Cinder grows up alongside you.
+Your best run is remembered and shown on the end screens (in the browser's
+local storage on the web, in `emberbound-best-run.txt` natively).
 
 Every sprite is drawn procedurally in code, and so is the pixel font (its
 glyphs are compiled into a TrueType file at start-up), so the repository

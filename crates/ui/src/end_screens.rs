@@ -2,7 +2,7 @@
 //! The world is already despawned, so both are opaque.
 
 use bevy::prelude::*;
-use emberbound_core::{GameState, HeroState, RunStats};
+use emberbound_core::{BestRunRecord, GameState, HeroState, RunStats};
 use emberbound_domain::bestiary::DragonKind;
 
 use crate::boon_strip::{BoonStrip, ICON_SIZE};
@@ -14,7 +14,12 @@ pub(crate) fn plugin(app: &mut App) {
         .add_systems(OnEnter(GameState::Victory), spawn_victory);
 }
 
-fn spawn_game_over(mut commands: Commands, stats: Res<RunStats>, hero: Res<HeroState>) {
+fn spawn_game_over(
+    mut commands: Commands,
+    stats: Res<RunStats>,
+    hero: Res<HeroState>,
+    record: Res<BestRunRecord>,
+) {
     commands.spawn((
         DespawnOnExit(GameState::GameOver),
         end_screen(
@@ -23,11 +28,17 @@ fn spawn_game_over(mut commands: Commands, stats: Res<RunStats>, hero: Res<HeroS
             theme::HEALTH,
             &stats,
             &hero,
+            &record,
         ),
     ));
 }
 
-fn spawn_victory(mut commands: Commands, stats: Res<RunStats>, hero: Res<HeroState>) {
+fn spawn_victory(
+    mut commands: Commands,
+    stats: Res<RunStats>,
+    hero: Res<HeroState>,
+    record: Res<BestRunRecord>,
+) {
     commands.spawn((
         DespawnOnExit(GameState::Victory),
         end_screen(
@@ -36,6 +47,7 @@ fn spawn_victory(mut commands: Commands, stats: Res<RunStats>, hero: Res<HeroSta
             theme::XP,
             &stats,
             &hero,
+            &record,
         ),
     ));
 }
@@ -46,6 +58,7 @@ fn end_screen(
     accent: Color,
     stats: &RunStats,
     hero: &HeroState,
+    record: &BestRunRecord,
 ) -> impl Bundle {
     (
         screen_root(),
@@ -56,6 +69,7 @@ fn end_screen(
             ),
             centered_label(verdict, font::BODY, theme::MUTED),
             summary(stats, hero),
+            best_run(record),
             taken_boons(),
             (
                 device_label("PRESS ENTER TO PLAY AGAIN", "TAP TO PLAY AGAIN", font::TITLE, theme::PARCHMENT),
@@ -63,6 +77,28 @@ fn end_screen(
             ),
         ],
     )
+}
+
+/// "NEW BEST!" when the finished run set the record, otherwise the record
+/// to beat.
+fn best_run(record: &BestRunRecord) -> impl Bundle {
+    let (text, size, color) = match record.best {
+        Some(_) if record.new_best => ("NEW BEST!".to_string(), font::TITLE, theme::XP),
+        Some(best) => (
+            format!(
+                "BEST  {}/{} DRAGONS  LEVEL {}  {} SLAIN  {}",
+                best.dragons_slain,
+                DragonKind::ALL.len(),
+                best.level,
+                best.kills,
+                clock(best.elapsed)
+            ),
+            font::BODY,
+            theme::MUTED,
+        ),
+        None => (String::new(), font::BODY, theme::MUTED),
+    };
+    centered_label(text, size, color)
 }
 
 /// The boons of the finished run, filled in by the strip.

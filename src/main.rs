@@ -6,6 +6,7 @@
 #[cfg(feature = "cheats")]
 mod cheats;
 mod input;
+mod records;
 mod session;
 
 use bevy::prelude::*;
@@ -34,7 +35,7 @@ fn main() {
     )
     .insert_resource(ClearColor(Color::srgb_u8(0x12, 0x10, 0x1a)))
     .add_plugins(CorePlugin)
-    .add_plugins((input::InputPlugin, session::SessionPlugin))
+    .add_plugins((input::InputPlugin, session::SessionPlugin, records::RecordsPlugin))
     .add_plugins((WorldPlugin, CombatPlugin, MonstersPlugin, UiPlugin));
     #[cfg(feature = "cheats")]
     app.add_plugins(cheats::CheatsPlugin);
