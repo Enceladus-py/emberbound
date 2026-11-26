@@ -66,10 +66,11 @@ impl Spawner<'_, '_> {
     /// Whether a creature fits at `position`: inside the valley, and on
     /// open ground if it walks.
     fn fits(&self, position: Vec2, radius: f32, walks: bool) -> bool {
+        let tiles = self.terrain.tiles();
         if walks {
-            return self.terrain.0.is_walkable_at(position.x, position.y, radius);
+            return tiles.is_walkable_at(position.x, position.y, radius);
         }
-        let (width, height) = self.terrain.0.world_size();
+        let Some((width, height)) = tiles.bounds() else { return true };
         let margin = MAP_MARGIN + radius;
         (margin..width - margin).contains(&position.x) && (margin..height - margin).contains(&position.y)
     }
@@ -97,9 +98,9 @@ impl Spawner<'_, '_> {
     /// falls back to the nearest point inside the valley.
     pub fn ring_spot_or_nearest(&mut self, hero: Vec2, radius: f32) -> Vec2 {
         self.ring_spot(hero, radius, false).unwrap_or_else(|| {
-            let (width, height) = self.terrain.0.world_size();
-            let margin = Vec2::splat(MAP_MARGIN + radius);
             let spot = hero + self.rng.direction() * RING_MIN;
+            let Some((width, height)) = self.terrain.tiles().bounds() else { return spot };
+            let margin = Vec2::splat(MAP_MARGIN + radius);
             spot.clamp(margin, Vec2::new(width, height) - margin)
         })
     }

@@ -69,7 +69,7 @@ pub fn spawn(
     mut commands: Commands,
 ) {
     let stage = GrowthStage::for_level(hero_state.progress.level());
-    let ground = Vec2::from(terrain.0.spawn_point()) + SPAWN_OFFSET;
+    let ground = Vec2::from(terrain.tiles().spawn_point()) + SPAWN_OFFSET;
     commands.spawn((
         Companion,
         library.animated(sprite_for(stage), COMPANION_FPS),

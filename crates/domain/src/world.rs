@@ -3,6 +3,7 @@
 //! World space: one unit is one art pixel. Tile `(0, 0)` covers world
 //! `(0, 0)..(TILE_SIZE, TILE_SIZE)`; x grows right and y grows up.
 
+use crate::chunk::ChunkedWorld;
 use crate::ports::RandomSource;
 
 /// Edge length of a tile in world units.
@@ -79,10 +80,7 @@ impl WorldMap {
 
     /// Whether a walker of the given radius fits at a world position.
     pub fn is_walkable_at(&self, wx: f32, wy: f32, radius: f32) -> bool {
-        [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)].iter().all(|(sx, sy)| {
-            let (tx, ty) = Self::tile_coords(wx + sx * radius, wy + sy * radius);
-            self.tile(tx, ty).is_walkable()
-        })
+        TileSource::is_walkable_at(self, wx, wy, radius)
     }
 
     /// Where the hero starts: the centre of the map (always a clearing).
@@ -112,6 +110,59 @@ impl WorldMap {
 
     pub fn walkable_count(&self) -> usize {
         self.tiles.iter().filter(|t| t.is_walkable()).count()
+    }
+}
+
+/// Read access to the ground, whatever backs it: the finite [`WorldMap`] or
+/// the endless [`ChunkedWorld`]. Collision, spawning and the start of a run
+/// go through this, so they work the same on either.
+pub trait TileSource {
+    /// Tile at grid coordinates. Ground that does not exist (outside a finite
+    /// map, or not loaded yet in an endless one) is solid.
+    fn tile(&self, x: i32, y: i32) -> Tile;
+
+    /// Where the hero starts, in world units. Always walkable.
+    fn spawn_point(&self) -> (f32, f32);
+
+    /// Size of the map in world units, or `None` when it has no edge.
+    fn bounds(&self) -> Option<(f32, f32)>;
+
+    /// Whether a walker of the given radius fits at a world position.
+    fn is_walkable_at(&self, wx: f32, wy: f32, radius: f32) -> bool {
+        [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)].iter().all(|(sx, sy)| {
+            let (tx, ty) = WorldMap::tile_coords(wx + sx * radius, wy + sy * radius);
+            self.tile(tx, ty).is_walkable()
+        })
+    }
+}
+
+impl TileSource for WorldMap {
+    fn tile(&self, x: i32, y: i32) -> Tile {
+        WorldMap::tile(self, x, y)
+    }
+
+    fn spawn_point(&self) -> (f32, f32) {
+        WorldMap::spawn_point(self)
+    }
+
+    fn bounds(&self) -> Option<(f32, f32)> {
+        Some(self.world_size())
+    }
+}
+
+/// Only loaded chunks are ground: call [`ChunkedWorld::load_around`] for the
+/// area in play before reading it through this trait.
+impl TileSource for ChunkedWorld {
+    fn tile(&self, x: i32, y: i32) -> Tile {
+        self.loaded_tile(x, y).unwrap_or(Tile::Tree)
+    }
+
+    fn spawn_point(&self) -> (f32, f32) {
+        WorldMap::tile_center(0, 0)
+    }
+
+    fn bounds(&self) -> Option<(f32, f32)> {
+        None
     }
 }
 
@@ -380,5 +431,51 @@ mod tests {
         let (cx, cy) = WorldMap::tile_center(16, 16);
         assert_eq!(field.direction(cx, cy), None);
         assert_eq!(field.steps(0, 0), None, "the forest border is solid");
+    }
+
+    #[test]
+    fn a_finite_map_reads_the_same_through_the_trait() {
+        let map = generate(32, 32, &mut TestRng(3));
+        let source: &dyn TileSource = &map;
+        for y in -2..34 {
+            for x in -2..34 {
+                assert_eq!(source.tile(x, y), map.tile(x, y));
+            }
+        }
+        assert_eq!(source.spawn_point(), map.spawn_point());
+        assert_eq!(source.bounds(), Some(map.world_size()));
+    }
+
+    #[test]
+    fn an_endless_world_reads_loaded_ground_and_treats_the_rest_as_solid() {
+        let mut world = ChunkedWorld::new(21, 16);
+        world.load_around(0, 0, 1);
+        let source: &dyn TileSource = &world;
+        assert_eq!(source.bounds(), None);
+        let (sx, sy) = source.spawn_point();
+        assert!(source.is_walkable_at(sx, sy, 6.0));
+        for (x, y) in [(0, 0), (-30, 17), (63, -32)] {
+            assert_eq!(Some(source.tile(x, y)), world.loaded_tile(x, y));
+        }
+        let far = 10 * crate::chunk::CHUNK_SIZE;
+        assert_eq!(world.loaded_tile(far, 0), None);
+        assert_eq!(source.tile(far, 0), Tile::Tree);
+    }
+
+    #[test]
+    fn walkable_at_agrees_with_the_tiles_under_the_walker() {
+        let mut world = ChunkedWorld::new(8, 16);
+        world.load_around(0, 0, 1);
+        let map = generate(48, 48, &mut TestRng(8));
+        for source in [&world as &dyn TileSource, &map] {
+            for ty in -20..60 {
+                for tx in -20..60 {
+                    let (wx, wy) = WorldMap::tile_center(tx, ty);
+                    // A small walker sits inside one tile: it fits exactly
+                    // where that tile is walkable.
+                    assert_eq!(source.is_walkable_at(wx, wy, 2.0), source.tile(tx, ty).is_walkable());
+                }
+            }
+        }
     }
 }

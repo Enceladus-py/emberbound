@@ -3,7 +3,7 @@
 
 use bevy::prelude::*;
 use emberbound_core::{Body, GameSet, Knockback, Player, Terrain, Velocity};
-use emberbound_domain::world::{TILE_SIZE, WorldMap};
+use emberbound_domain::world::{TILE_SIZE, TileSource};
 
 /// Seconds in which knockback loses half of its speed.
 const KNOCKBACK_HALF_LIFE: f32 = 0.08;
@@ -17,7 +17,7 @@ const MAX_STEP: f32 = TILE_SIZE * 0.5;
 /// obstacles instead of sticking to them, in steps short enough not to
 /// tunnel. A walker that already overlaps an obstacle (e.g. it was spawned
 /// or shoved there) moves freely until it is out again.
-fn walk(map: &WorldMap, mut position: Vec2, delta: Vec2, radius: f32) -> Vec2 {
+fn walk(map: &dyn TileSource, mut position: Vec2, delta: Vec2, radius: f32) -> Vec2 {
     let steps = (delta.abs().max_element() / MAX_STEP).ceil().max(1.0);
     let step = delta / steps;
     for _ in 0..steps as u32 {
@@ -47,7 +47,7 @@ fn integrate_velocities(
         }
         let position = transform.translation.truncate();
         let moved = match body {
-            Some(body) if body.walks => walk(&terrain.0, position, delta, body.radius),
+            Some(body) if body.walks => walk(terrain.tiles(), position, delta, body.radius),
             _ => position + delta,
         };
         if moved != position {
@@ -68,10 +68,11 @@ fn decay_knockback(time: Res<Time>, mut knockbacks: Query<&mut Knockback>) {
     }
 }
 
-/// Last line of defence: whatever happens, the hero stays on the map.
+/// Last line of defence: whatever happens, the hero stays on the map (if it
+/// has an edge).
 fn confine_hero(terrain: Res<Terrain>, mut hero: Single<(&mut Transform, &Body), With<Player>>) {
+    let Some((width, height)) = terrain.tiles().bounds() else { return };
     let (transform, body) = &mut *hero;
-    let (width, height) = terrain.0.world_size();
     let min = Vec2::splat(body.radius);
     let max = (Vec2::new(width, height) - min).max(min);
     let position = transform.translation.truncate();
@@ -93,7 +94,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::time::TimeUpdateStrategy;
-    use emberbound_domain::world::Tile;
+    use emberbound_domain::world::{Tile, WorldMap};
 
     use super::*;
 
@@ -147,6 +148,21 @@ mod tests {
             let moved = walk(&map, start, Vec2::new(distance, 0.0), RADIUS);
             assert!(moved.x < 3.0 * TILE_SIZE, "{distance} units went through the wall to {moved}");
             assert_eq!(moved.y, start.y);
+        }
+    }
+
+    #[test]
+    fn walkers_on_the_endless_world_stop_at_obstacles_and_unloaded_ground() {
+        use emberbound_domain::chunk::{CHUNK_SIZE, ChunkedWorld};
+        let mut world = ChunkedWorld::new(4, 16);
+        world.load_around(0, 0, 1);
+        let start = Vec2::from(world.spawn_point());
+        let edge = 2.0 * CHUNK_SIZE as f32 * TILE_SIZE;
+        for angle in 0..16 {
+            let delta = Vec2::from_angle(angle as f32 * std::f32::consts::TAU / 16.0) * 4.0 * edge;
+            let moved = walk(&world, start, delta, RADIUS);
+            assert!(world.is_walkable_at(moved.x, moved.y, RADIUS), "ended on blocked ground at {moved}");
+            assert!(moved.abs().max_element() < edge, "walked off the loaded chunks to {moved}");
         }
     }
 

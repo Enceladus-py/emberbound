@@ -4,7 +4,7 @@ use emberbound_domain::boons::Boon;
 use emberbound_domain::ports::RandomSource;
 use emberbound_domain::progression::{HeroStats, Progress};
 use emberbound_domain::records::BestRun;
-use emberbound_domain::world::{self, WorldMap};
+use emberbound_domain::world::{self, TileSource, WorldMap};
 
 /// Device-independent player input for this frame. Gameplay reads this, never
 /// the keyboard: the app's input adapter fills it in `PreUpdate`.
@@ -74,6 +74,15 @@ pub struct BoonOffer(pub Vec<Boon>);
 /// [`crate::RunSetup::Reset`].
 #[derive(Resource, Debug, Clone)]
 pub struct Terrain(pub WorldMap);
+
+impl Terrain {
+    /// The ground as collision, spawning and the run start read it. Go
+    /// through this rather than the map itself, so those keep working once
+    /// the terrain can be an endless, chunked world.
+    pub fn tiles(&self) -> &dyn TileSource {
+        &self.0
+    }
+}
 
 impl Default for Terrain {
     fn default() -> Self {

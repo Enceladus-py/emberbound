@@ -38,7 +38,7 @@ fn spawn_hero(
     hero: Res<HeroState>,
     library: Res<SpriteLibrary>,
 ) {
-    let (x, y) = terrain.0.spawn_point();
+    let (x, y) = terrain.tiles().spawn_point();
     let stats = &hero.stats;
     commands.spawn((
         Player,
