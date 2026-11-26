@@ -8,6 +8,7 @@
 
 pub mod bestiary;
 pub mod boons;
+pub mod chunk;
 pub mod combat;
 pub mod companion;
 pub mod encounter;
